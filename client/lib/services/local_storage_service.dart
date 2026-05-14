@@ -1,11 +1,15 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/movie.dart';
+import '../models/vod_source.dart';
 
 class LocalStorageService {
   static const _favKey = 'favorites';
   static const _historyKey = 'history';
+  static const _vodCacheKey = 'vod_cache';
   static const _maxHistory = 50;
+  static const _maxVodCache = 30;
+  static const _vodCacheExpiry = Duration(hours: 24);
 
   // --- Favorites ---
 
@@ -40,6 +44,11 @@ class LocalStorageService {
     final favs = await getFavorites();
     favs.removeWhere((m) => m.id == movieId);
     await prefs.setString(_favKey, jsonEncode(favs.map((m) => m.toJson()).toList()));
+  }
+
+  static Future<void> clearFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_favKey);
   }
 
   // --- Watch History ---
@@ -113,5 +122,44 @@ class LocalStorageService {
   static Future<void> clearHistory() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_historyKey);
+  }
+
+  // --- VOD Cache ---
+
+  static Future<Map<String, dynamic>?> getCachedVod(int movieId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_vodCacheKey);
+    if (raw == null) return null;
+    final list = List<Map<String, dynamic>>.from(jsonDecode(raw));
+    for (final entry in list) {
+      if (entry['id'] == movieId) {
+        final cachedAt = DateTime.tryParse(entry['cachedAt'] ?? '');
+        if (cachedAt != null &&
+            DateTime.now().difference(cachedAt) < _vodCacheExpiry) {
+          return entry['data'];
+        }
+        return null; // Expired
+      }
+    }
+    return null;
+  }
+
+  static Future<void> cacheVodResult(int movieId, VodSearchResult result) async {
+    if (!result.found || result.sources.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_vodCacheKey);
+    final list = raw != null
+        ? List<Map<String, dynamic>>.from(jsonDecode(raw))
+        : <Map<String, dynamic>>[];
+    list.removeWhere((e) => e['id'] == movieId);
+    list.insert(0, {
+      'id': movieId,
+      'cachedAt': DateTime.now().toIso8601String(),
+      'data': result.toJson(),
+    });
+    if (list.length > _maxVodCache) {
+      list.removeRange(_maxVodCache, list.length);
+    }
+    await prefs.setString(_vodCacheKey, jsonEncode(list));
   }
 }

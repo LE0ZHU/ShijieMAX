@@ -138,56 +138,64 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0A0A0F),
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.06),
+              color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.arrow_back, color: Colors.white, size: 18),
+            child: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface, size: 18),
           ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Container(
-          height: 42,
-          decoration: BoxDecoration(
-            color: const Color(0xFF16161E),
-            borderRadius: BorderRadius.circular(21),
-            border: Border.all(color: Colors.white.withOpacity(0.06)),
-          ),
-          child: TextField(
-            controller: _searchController,
-            autofocus: true,
-            style: const TextStyle(color: Colors.white, fontSize: 15),
-            decoration: InputDecoration(
-              hintText: '搜索电影、电视剧...',
-              hintStyle: const TextStyle(color: Color(0xFF5A5A6E), fontSize: 14),
-              prefixIcon: const Icon(Icons.search, color: Color(0xFF5A5A6E), size: 20),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, color: Color(0xFF5A5A6E), size: 18),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() {
-                          _vodResults = [];
-                          _tmdbResults = [];
-                          _hasSearched = false;
-                        });
-                      },
-                    )
-                  : null,
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(vertical: 11),
+        title: Hero(
+          tag: 'search_bar',
+          child: Material(
+            type: MaterialType.transparency,
+            child: Container(
+            height: 42,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(21),
+              border: Border.all(color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06)),
             ),
-            onSubmitted: _performSearch,
-            onChanged: (_) => setState(() {}),
+            child: TextField(
+              controller: _searchController,
+              autofocus: true,
+              style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 15),
+              decoration: InputDecoration(
+                hintText: '搜索电影、电视剧...',
+                hintStyle: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.4), fontSize: 14),
+                prefixIcon: Icon(Icons.search, color: theme.colorScheme.onSurface.withOpacity(0.4), size: 20),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear, color: theme.colorScheme.onSurface.withOpacity(0.4), size: 18),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _vodResults = [];
+                            _tmdbResults = [];
+                            _hasSearched = false;
+                          });
+                        },
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 11),
+              ),
+              onSubmitted: _performSearch,
+              onChanged: (_) => setState(() {}),
+            ),
           ),
+        ),
         ),
         actions: [
           Padding(
@@ -207,6 +215,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildBody() {
+    final theme = Theme.of(context);
     if (_isLoading) {
       return const Center(
         child: CircularProgressIndicator(color: Color(0xFFE50914)),
@@ -227,9 +236,9 @@ class _SearchScreenState extends State<SearchScreen> {
               child: const Icon(Icons.error_outline, color: Color(0xFFE50914), size: 40),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               '搜索失败',
-              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+              style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 18, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -245,11 +254,11 @@ class _SearchScreenState extends State<SearchScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.movie_creation_outlined, color: Color(0xFF3A3A4E), size: 72),
+            Icon(Icons.movie_creation_outlined, color: theme.colorScheme.onSurface.withOpacity(0.3), size: 72),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               '未找到相关结果',
-              style: TextStyle(color: Color(0xFF5A5A6E), fontSize: 16, fontWeight: FontWeight.w500),
+              style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.4), fontSize: 16, fontWeight: FontWeight.w500),
             ),
           ],
         ),
@@ -266,15 +275,16 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildInitialHint() {
+    final theme = Theme.of(context);
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.search_rounded, color: Color(0xFF3A3A4E), size: 72),
+          Icon(Icons.search_rounded, color: theme.colorScheme.onSurface.withOpacity(0.3), size: 72),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             '输入关键词搜索全网资源',
-            style: TextStyle(color: Color(0xFF5A5A6E), fontSize: 16, fontWeight: FontWeight.w500),
+            style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.4), fontSize: 16, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 24),
           Wrap(
@@ -291,6 +301,8 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildQuickSearch(String label) {
+    final t = Theme.of(context);
+    final dark = t.brightness == Brightness.dark;
     return GestureDetector(
       onTap: () {
         _searchController.text = label;
@@ -299,19 +311,21 @@ class _SearchScreenState extends State<SearchScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.06),
+          color: dark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withOpacity(0.08)),
+          border: Border.all(color: dark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.06)),
         ),
         child: Text(
           label,
-          style: const TextStyle(color: Color(0xFFB0B0C0), fontSize: 13, fontWeight: FontWeight.w500),
+          style: TextStyle(color: t.colorScheme.onSurface.withOpacity(0.6), fontSize: 13, fontWeight: FontWeight.w500),
         ),
       ),
     );
   }
 
   Widget _buildResultCard(Map<String, dynamic> item) {
+    final t = Theme.of(context);
+    final dark = t.brightness == Brightness.dark;
     final vodId = int.tryParse(item['vodId']?.toString() ?? '');
     final name = item['name']?.toString() ?? '';
     final typeName = item['typeName']?.toString() ?? '';
@@ -329,12 +343,12 @@ class _SearchScreenState extends State<SearchScreen> {
           decoration: BoxDecoration(
             color: isLoading
                 ? const Color(0xFFE50914).withOpacity(0.08)
-                : Colors.white.withOpacity(0.04),
+                : dark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.04 * 0.7),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isLoading
                   ? const Color(0xFFE50914).withOpacity(0.2)
-                  : Colors.white.withOpacity(0.06),
+                  : dark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06 * 0.7),
             ),
           ),
           child: Row(
@@ -363,8 +377,8 @@ class _SearchScreenState extends State<SearchScreen> {
                       name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: t.colorScheme.onSurface,
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                       ),
@@ -394,8 +408,8 @@ class _SearchScreenState extends State<SearchScreen> {
                           if (remark.isNotEmpty)
                             Text(
                               remark,
-                              style: const TextStyle(
-                                color: Color(0xFF5A5A6E),
+                              style: TextStyle(
+                                color: t.colorScheme.onSurface.withOpacity(0.4),
                                 fontSize: 12,
                               ),
                             ),
@@ -406,12 +420,12 @@ class _SearchScreenState extends State<SearchScreen> {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          const Icon(Icons.cloud, size: 11, color: Color(0xFF5A5A6E)),
+                          Icon(Icons.cloud, size: 11, color: t.colorScheme.onSurface.withOpacity(0.4)),
                           const SizedBox(width: 4),
                           Text(
                             siteName,
-                            style: const TextStyle(
-                              color: Color(0xFF5A5A6E),
+                            style: TextStyle(
+                              color: t.colorScheme.onSurface.withOpacity(0.4),
                               fontSize: 11,
                             ),
                           ),
@@ -434,9 +448,9 @@ class _SearchScreenState extends State<SearchScreen> {
                   ),
                 )
               else
-                const Padding(
-                  padding: EdgeInsets.only(left: 8),
-                  child: Icon(Icons.play_circle_outline, color: Color(0xFF3A3A4E), size: 28),
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Icon(Icons.play_circle_outline, color: t.colorScheme.onSurface.withOpacity(0.3), size: 28),
                 ),
             ],
           ),
@@ -446,13 +460,14 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildCoverPlaceholder(String name) {
+    final theme = Theme.of(context);
     return Container(
-      color: const Color(0xFF1A1A2E),
+      color: theme.colorScheme.surface,
       child: Center(
         child: Text(
           name.isNotEmpty ? name[0] : '?',
-          style: const TextStyle(
-            color: Color(0xFF3A3A4E),
+          style: TextStyle(
+            color: theme.colorScheme.onSurface.withOpacity(0.4),
             fontSize: 28,
             fontWeight: FontWeight.w800,
           ),

@@ -71,25 +71,27 @@ class _GenreDetailScreenState extends State<GenreDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0A0A0F),
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.06),
+              color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06 * 0.7),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.arrow_back, color: Colors.white, size: 18),
+            child: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface, size: 18),
           ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           widget.genreName,
-          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+          style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 18, fontWeight: FontWeight.w700),
         ),
       ),
       body: _buildBody(),
@@ -97,6 +99,7 @@ class _GenreDetailScreenState extends State<GenreDetailScreen> {
   }
 
   Widget _buildBody() {
+    final theme = Theme.of(context);
     if (_isLoading && _movies.isEmpty) {
       return const Center(child: CircularProgressIndicator(color: Color(0xFFE50914)));
     }
@@ -108,7 +111,7 @@ class _GenreDetailScreenState extends State<GenreDetailScreen> {
           children: [
             const Icon(Icons.error_outline, color: Color(0xFFE50914), size: 40),
             const SizedBox(height: 16),
-            const Text('加载失败', style: TextStyle(color: Colors.white, fontSize: 18)),
+            Text('加载失败', style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 18)),
             const SizedBox(height: 16),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE50914)),

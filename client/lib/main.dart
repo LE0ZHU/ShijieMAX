@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'providers/theme_provider.dart';
 import 'screens/home_screen.dart';
 
-final themeNotifier = ValueNotifier<ThemeMode>(ThemeMode.dark);
-
 void main() {
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.light,
-  ));
   runApp(const ShijieTVApp());
 }
 
@@ -55,20 +51,36 @@ class ShijieTVApp extends StatelessWidget {
     );
   }
 
+  void _updateStatusBar(ThemeMode mode, Brightness platformBrightness) {
+    final isDark = switch (mode) {
+      ThemeMode.dark => true,
+      ThemeMode.light => false,
+      ThemeMode.system => platformBrightness == Brightness.dark,
+    };
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: themeNotifier,
-      builder: (context, mode, _) {
-        return MaterialApp(
-          title: '视界MAX',
-          debugShowCheckedModeBanner: false,
-          theme: _buildTheme(Brightness.light),
-          darkTheme: _buildTheme(Brightness.dark),
-          themeMode: mode,
-          home: const HomeScreen(),
-        );
-      },
+    return ChangeNotifierProvider(
+      create: (_) => ThemeProvider(),
+      child: Consumer<ThemeProvider>(
+        builder: (context, provider, _) {
+          final platformBrightness = MediaQuery.platformBrightnessOf(context);
+          _updateStatusBar(provider.themeMode, platformBrightness);
+          return MaterialApp(
+            title: '视界MAX',
+            debugShowCheckedModeBanner: false,
+            theme: _buildTheme(Brightness.light),
+            darkTheme: _buildTheme(Brightness.dark),
+            themeMode: provider.themeMode,
+            home: const HomeScreen(),
+          );
+        },
+      ),
     );
   }
 }

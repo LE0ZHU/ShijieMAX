@@ -124,14 +124,44 @@ app.get('/api/movies/popular', async (req, res) => {
   }
 });
 
-app.get('/api/tv/top_rated', async (req, res) => {
+app.get('/api/tv/top-rated', async (req, res) => {
   try {
     const { page = 1 } = req.query;
     const data = await tmdb.getTopRatedTV(Number(page));
     res.json({ success: true, data });
   } catch (error) {
-    console.error('/api/tv/top_rated Error:', error.response?.data || error.message);
+    console.error('/api/tv/top-rated Error:', error.response?.data || error.message);
     res.status(500).json({ success: false, message: error.response?.data?.status_message || error.message });
+  }
+});
+
+app.get('/api/movies/chinese-popular', async (req, res) => {
+  try {
+    const { page = 1 } = req.query;
+    const data = await tmdb.getChinesePopularMovies(Number(page));
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.get('/api/tv/chinese-popular', async (req, res) => {
+  try {
+    const { page = 1 } = req.query;
+    const data = await tmdb.getChinesePopularTV(Number(page));
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.get('/api/tv/jk-popular', async (req, res) => {
+  try {
+    const { page = 1 } = req.query;
+    const data = await tmdb.getJKPopularTV(Number(page));
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

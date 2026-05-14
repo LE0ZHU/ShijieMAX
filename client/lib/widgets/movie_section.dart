@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../models/movie.dart';
 import '../screens/movie_detail_screen.dart';
 import 'movie_card.dart';
+import 'parallax_widget.dart';
 
 class HeroBanner extends StatefulWidget {
   final List<Movie> movies;
@@ -83,11 +84,21 @@ class _HeroBannerState extends State<HeroBanner> {
                   Navigator.push(
                     context,
                     PageRouteBuilder(
-                      transitionDuration: const Duration(milliseconds: 400),
+                      transitionDuration: const Duration(milliseconds: 450),
+                      reverseTransitionDuration: const Duration(milliseconds: 350),
                       pageBuilder: (context, animation, secondaryAnimation) =>
-                          MovieDetailScreen(movieId: movie.id, type: movie.type),
+                          MovieDetailScreen(movieId: movie.id, type: movie.type, preview: movie),
                       transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                        return FadeTransition(opacity: animation, child: child);
+                        return FadeTransition(
+                          opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
+                            CurvedAnimation(
+                              parent: animation,
+                              curve: Curves.easeOut,
+                              reverseCurve: const Interval(0.5, 1.0, curve: Curves.easeIn),
+                            ),
+                          ),
+                          child: child,
+                        );
                       },
                     ),
                   );
@@ -96,23 +107,25 @@ class _HeroBannerState extends State<HeroBanner> {
                   child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        if (movie.backdropUrl != null)
-                          CachedNetworkImage(
-                            imageUrl: movie.backdropUrl!,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(
-                              color: const Color(0xFF1A1A2E),
-                            ),
-                            errorWidget: (context, url, error) => Container(
-                              color: const Color(0xFF1A1A2E),
-                              child: const Icon(Icons.play_circle_outline, color: Color(0xFF3A3A4E), size: 48),
-                            ),
-                          )
-                        else
-                          Container(
-                            color: const Color(0xFF1A1A2E),
-                            child: const Icon(Icons.play_circle_outline, color: Color(0xFF3A3A4E), size: 48),
-                          ),
+                        Hero(
+                          tag: 'movie_backdrop_${movie.id}',
+                          child: movie.backdropUrl != null
+                              ? CachedNetworkImage(
+                                  imageUrl: movie.backdropUrl!,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) => Container(
+                                    color: const Color(0xFF1A1A2E),
+                                  ),
+                                  errorWidget: (context, url, error) => Container(
+                                    color: const Color(0xFF1A1A2E),
+                                    child: const Icon(Icons.play_circle_outline, color: Color(0xFF3A3A4E), size: 48),
+                                  ),
+                                )
+                              : Container(
+                                  color: const Color(0xFF1A1A2E),
+                                  child: const Icon(Icons.play_circle_outline, color: Color(0xFF3A3A4E), size: 48),
+                                ),
+                        ),
                         Container(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
@@ -132,95 +145,97 @@ class _HeroBannerState extends State<HeroBanner> {
                           bottom: 24,
                           left: 20,
                           right: 20,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (movie.rating > 0)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFE50914),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.star, size: 12, color: Colors.white),
-                                      const SizedBox(width: 3),
-                                      Text(
-                                        movie.rating.toStringAsFixed(1),
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              const SizedBox(height: 10),
-                              Text(
-                                movie.title,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.5,
-                                  shadows: [
-                                    Shadow(color: Colors.black54, blurRadius: 8),
-                                  ],
-                                ),
-                              ),
-                              if (movie.overview != null && movie.overview!.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 6),
-                                  child: Text(
-                                    movie.overview!,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: Colors.white.withOpacity(0.7),
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ),
-                              const SizedBox(height: 14),
-                              Row(
-                                children: [
+                          child: ParallaxWidget(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (movie.rating > 0)
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
                                       color: const Color(0xFFE50914),
-                                      borderRadius: BorderRadius.circular(24),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: const Color(0xFFE50914).withOpacity(0.4),
-                                          blurRadius: 10,
-                                        ),
-                                      ],
+                                      borderRadius: BorderRadius.circular(6),
                                     ),
-                                    child: const Row(
+                                    child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(Icons.play_arrow, size: 18, color: Colors.white),
-                                        SizedBox(width: 4),
+                                        const Icon(Icons.star, size: 12, color: Colors.white),
+                                        const SizedBox(width: 3),
                                         Text(
-                                          '立即观看',
-                                          style: TextStyle(
+                                          movie.rating.toStringAsFixed(1),
+                                          style: const TextStyle(
                                             color: Colors.white,
-                                            fontSize: 13,
+                                            fontSize: 12,
                                             fontWeight: FontWeight.w700,
                                           ),
                                         ),
                                       ],
                                     ),
                                   ),
-                                ],
-                              ),
-                            ],
+                                const SizedBox(height: 10),
+                                Text(
+                                  movie.title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.5,
+                                    shadows: [
+                                      Shadow(color: Colors.black54, blurRadius: 8),
+                                    ],
+                                  ),
+                                ),
+                                if (movie.overview != null && movie.overview!.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 6),
+                                    child: Text(
+                                      movie.overview!,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.7),
+                                        fontSize: 13,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ),
+                                const SizedBox(height: 14),
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFE50914),
+                                        borderRadius: BorderRadius.circular(24),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFFE50914).withOpacity(0.4),
+                                            blurRadius: 10,
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.play_arrow, size: 18, color: Colors.white),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            '立即观看',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -276,6 +291,8 @@ class MovieSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -293,8 +310,8 @@ class MovieSection extends StatelessWidget {
                     ),
                   Text(
                     title,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurface,
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                       letterSpacing: -0.3,
@@ -307,19 +324,19 @@ class MovieSection extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.06),
+                    color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withOpacity(0.08)),
+                    border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.06)),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         '更多',
-                        style: TextStyle(color: Color(0xFFB0B0C0), fontSize: 12, fontWeight: FontWeight.w500),
+                        style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6), fontSize: 12, fontWeight: FontWeight.w500),
                       ),
-                      SizedBox(width: 2),
-                      Icon(Icons.chevron_right, size: 14, color: Color(0xFFB0B0C0)),
+                      const SizedBox(width: 2),
+                      Icon(Icons.chevron_right, size: 14, color: theme.colorScheme.onSurface.withOpacity(0.6)),
                     ],
                   ),
                 ),
@@ -344,7 +361,7 @@ class MovieSection extends StatelessWidget {
                           Expanded(
                             child: Container(
                               decoration: BoxDecoration(
-                                color: const Color(0xFF1A1A2E),
+                                color: theme.colorScheme.surface,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
@@ -354,7 +371,7 @@ class MovieSection extends StatelessWidget {
                             width: 80,
                             height: 12,
                             decoration: BoxDecoration(
-                              color: const Color(0xFF1A1A2E),
+                              color: theme.colorScheme.surface,
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
@@ -364,10 +381,10 @@ class MovieSection extends StatelessWidget {
                   },
                 )
               : movies.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
                         '暂无数据',
-                        style: TextStyle(color: Color(0xFF5A5A6E), fontSize: 14),
+                        style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.4), fontSize: 14),
                       ),
                     )
                   : ListView.builder(

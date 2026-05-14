@@ -36,14 +36,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Future<void> _clear() async {
+    final theme = Theme.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF16161E),
-        title: const Text('清除记录', style: TextStyle(color: Colors.white)),
-        content: const Text('确定要清空所有观看历史吗？', style: TextStyle(color: Color(0xFFB0B0C0))),
+        backgroundColor: theme.colorScheme.surface,
+        title: Text('清除记录', style: TextStyle(color: theme.colorScheme.onSurface)),
+        content: Text('确定要清空所有观看历史吗？', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6))),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消', style: TextStyle(color: Color(0xFF5A5A6E)))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('取消', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.4)))),
           TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('确定', style: TextStyle(color: Color(0xFFE50914)))),
         ],
       ),
@@ -71,23 +72,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0A0A0F),
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(color: Colors.white.withOpacity(0.06), shape: BoxShape.circle),
-            child: const Icon(Icons.arrow_back, color: Colors.white, size: 18),
+            decoration: BoxDecoration(color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06 * 0.7), shape: BoxShape.circle),
+            child: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface, size: 18),
           ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('观看历史', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
+        title: Text('观看历史', style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 18, fontWeight: FontWeight.w700)),
         actions: [
           if (_history.isNotEmpty)
-            IconButton(onPressed: _clear, icon: const Icon(Icons.delete_outline, color: Color(0xFF5A5A6E), size: 20)),
+            IconButton(onPressed: _clear, icon: Icon(Icons.delete_outline, color: theme.colorScheme.onSurface.withOpacity(0.4), size: 20)),
         ],
       ),
       body: _isLoading
@@ -97,9 +100,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.history, color: const Color(0xFF3A3A4E), size: 64),
+                      Icon(Icons.history, color: theme.colorScheme.onSurface.withOpacity(0.3), size: 64),
                       const SizedBox(height: 16),
-                      const Text('暂无观看记录', style: TextStyle(color: Color(0xFF5A5A6E), fontSize: 16)),
+                      Text('暂无观看记录', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.4), fontSize: 16)),
                     ],
                   ),
                 )
@@ -107,7 +110,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   padding: const EdgeInsets.all(16),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
-                    childAspectRatio: 0.52,
+                    childAspectRatio: 0.46,
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 16,
                   ),
@@ -123,22 +126,38 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     return GestureDetector(
                       onTap: () {
                         Navigator.push(context, PageRouteBuilder(
+                          transitionDuration: const Duration(milliseconds: 450),
+                          reverseTransitionDuration: const Duration(milliseconds: 350),
                           pageBuilder: (c, a, sa) => PlayerScreen(movie: movie),
-                          transitionsBuilder: (c, a, sa, child) => FadeTransition(opacity: a, child: child),
-                          transitionDuration: const Duration(milliseconds: 300),
+                          transitionsBuilder: (c, a, sa, child) {
+                            return FadeTransition(
+                              opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
+                                CurvedAnimation(
+                                  parent: a,
+                                  curve: Curves.easeOut,
+                                  reverseCurve: const Interval(0.5, 1.0, curve: Curves.easeIn),
+                                ),
+                              ),
+                              child: child,
+                            );
+                          },
                         ));
                       },
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
+                          AspectRatio(
+                            aspectRatio: 2 / 3,
                             child: Stack(
                               children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: movie.posterUrl != null
-                                      ? CachedNetworkImage(imageUrl: movie.posterUrl!, fit: BoxFit.cover, width: double.infinity)
-                                      : Container(color: const Color(0xFF1A1A2E), child: const Icon(Icons.movie, color: Color(0xFF3A3A4E))),
+                                Hero(
+                                  tag: 'movie_poster_${movie.id}',
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: movie.posterUrl != null
+                                        ? CachedNetworkImage(imageUrl: movie.posterUrl!, fit: BoxFit.cover, width: double.infinity)
+                                        : Container(color: const Color(0xFF1A1A2E), child: const Icon(Icons.movie, color: Color(0xFF3A3A4E))),
+                                  ),
                                 ),
                                 Positioned(
                                   top: 4, right: 4,
@@ -147,7 +166,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     child: Container(
                                       padding: const EdgeInsets.all(4),
                                       decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                                      child: const Icon(Icons.close, color: Colors.white, size: 14),
+                                      child: Icon(Icons.close, color: theme.colorScheme.onSurface, size: 14),
                                     ),
                                   ),
                                 ),
@@ -183,10 +202,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(movie.title, maxLines: 1, overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: Color(0xFFE0E0E8), fontSize: 13, fontWeight: FontWeight.w600)),
+                            style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 13, fontWeight: FontWeight.w600)),
                           if (epName.isNotEmpty)
                             Text(epName, maxLines: 1, overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: Color(0xFF5A5A6E), fontSize: 11)),
+                              style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.4), fontSize: 11)),
                           if (time.isNotEmpty && epName.isEmpty)
                             Text(time, style: const TextStyle(color: Color(0xFF5A5A6E), fontSize: 11)),
                         ],

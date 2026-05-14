@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/movie.dart';
 import '../screens/movie_detail_screen.dart';
+import 'parallax_widget.dart';
 
 class MovieCard extends StatelessWidget {
   final Movie movie;
@@ -17,16 +18,27 @@ class MovieCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           PageRouteBuilder(
-            transitionDuration: const Duration(milliseconds: 400),
+            transitionDuration: const Duration(milliseconds: 450),
+            reverseTransitionDuration: const Duration(milliseconds: 350),
             pageBuilder: (context, animation, secondaryAnimation) =>
-                MovieDetailScreen(movieId: movie.id, type: movie.type),
+                MovieDetailScreen(movieId: movie.id, type: movie.type, preview: movie),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
+              return FadeTransition(
+                opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
+                  CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOut,
+                    reverseCurve: const Interval(0.5, 1.0, curve: Curves.easeIn),
+                  ),
+                ),
+                child: child,
+              );
             },
           ),
         );
@@ -49,17 +61,19 @@ class MovieCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      movie.posterUrl != null
+                child: Hero(
+                  tag: 'movie_poster_${movie.id}',
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        movie.posterUrl != null
                           ? CachedNetworkImage(
                               imageUrl: movie.posterUrl!,
                               fit: BoxFit.cover,
                               placeholder: (context, url) => Container(
-                                color: const Color(0xFF1A1A2E),
+                                color: theme.colorScheme.surface,
                                 child: const Center(
                                   child: SizedBox(
                                     width: 20,
@@ -72,13 +86,13 @@ class MovieCard extends StatelessWidget {
                                 ),
                               ),
                               errorWidget: (context, url, error) => Container(
-                                color: const Color(0xFF1A1A2E),
-                                child: const Icon(Icons.play_circle_outline, color: Color(0xFF3A3A4E), size: 36),
+                                color: theme.colorScheme.surface,
+                                child: Icon(Icons.play_circle_outline, color: theme.colorScheme.onSurface.withOpacity(0.2), size: 36),
                               ),
                             )
                           : Container(
-                              color: const Color(0xFF1A1A2E),
-                              child: const Icon(Icons.play_circle_outline, color: Color(0xFF3A3A4E), size: 36),
+                              color: theme.colorScheme.surface,
+                              child: Icon(Icons.play_circle_outline, color: theme.colorScheme.onSurface.withOpacity(0.2), size: 36),
                             ),
                       Positioned(
                         bottom: 0,
@@ -102,32 +116,35 @@ class MovieCard extends StatelessWidget {
                         Positioned(
                           top: 8,
                           right: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE50914),
-                              borderRadius: BorderRadius.circular(6),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFFE50914).withOpacity(0.4),
-                                  blurRadius: 6,
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.star, size: 10, color: Colors.white),
-                                const SizedBox(width: 2),
-                                Text(
-                                  movie.rating.toStringAsFixed(1),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
+                          child: ParallaxWidget(
+                            offset: 5,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE50914),
+                                borderRadius: BorderRadius.circular(6),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFFE50914).withOpacity(0.4),
+                                    blurRadius: 6,
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.star, size: 10, color: Colors.white),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    movie.rating.toStringAsFixed(1),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -136,6 +153,7 @@ class MovieCard extends StatelessWidget {
                 ),
               ),
             ),
+            ),
             const SizedBox(height: 10),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -143,8 +161,8 @@ class MovieCard extends StatelessWidget {
                 movie.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFFE0E0E8),
+                style: TextStyle(
+                  color: theme.colorScheme.onSurface,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
@@ -155,8 +173,8 @@ class MovieCard extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 2, top: 2),
                 child: Text(
                   movie.releaseDate!.substring(0, movie.releaseDate!.length > 4 ? 4 : movie.releaseDate!.length),
-                  style: const TextStyle(
-                    color: Color(0xFF5A5A6E),
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface.withOpacity(0.5),
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                   ),

@@ -10,6 +10,12 @@ class VodEpisode {
         url: json['url'] ?? '',
         isM3u8: json['isM3u8'] ?? false,
       );
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'url': url,
+        'isM3u8': isM3u8,
+      };
 }
 
 class VodSource {
@@ -27,6 +33,12 @@ class VodSource {
             [],
         hasM3u8: json['hasM3u8'] ?? false,
       );
+
+  Map<String, dynamic> toJson() => {
+        'sourceName': sourceName,
+        'hasM3u8': hasM3u8,
+        'episodes': episodes.map((e) => e.toJson()).toList(),
+      };
 
   VodEpisode? get firstM3u8Episode {
     for (final ep in episodes) {
@@ -96,6 +108,21 @@ class VodSearchResult {
     }
     return null;
   }
+
+  Map<String, dynamic> toJson() => {
+        'found': found,
+        'name': title,
+        'pic': poster,
+        'typeName': typeName,
+        'remark': remark,
+        'year': year,
+        'area': area,
+        'lang': lang,
+        'actor': actor,
+        'director': director,
+        'description': description,
+        'sources': sources.map((s) => s.toJson()).toList(),
+      };
 
   List<VodSource> get m3u8Sources => sources.where((s) => s.hasM3u8).toList();
 }

@@ -6,6 +6,63 @@ const sites = (siteConfig.sites || []).filter(s => s.active && s.key);
 const SEARCH_TIMEOUT = 8000;
 const MAX_PROVIDERS = 5;
 
+const VERSION_KEYWORDS = /粤语|国语|英语|日语|韩语|台语|闽南语|泰语|中配|台配|日配|英文版|英配|原版/i;
+const SUBTITLE_PATTERN = /[之·][一-鿿]{2,}$/;
+
+function normalize(s) {
+  return s
+    .replace(/[\s，,、。．.·：《》「」『』【】（）\(\)！!？?：:；;""'']+/g, '')
+    .toLowerCase();
+}
+
+function matchScore(resultName, searchTitle) {
+  const r = normalize(resultName);
+  const s = normalize(searchTitle);
+
+  // Exact match after removing spaces
+  if (r === s) return 100;
+
+  // Result contains the full search term
+  if (r.includes(s)) {
+    const extra = r.replace(s, '');
+    // Penalize if extra part looks like a version keyword or subtitle
+    if (VERSION_KEYWORDS.test(extra) || SUBTITLE_PATTERN.test(extra)) return 30;
+    // Extra text looks like season/episode number (e.g., "第二季", "第12集")
+    if (/^第[一二三四五六七八九十\d]+[季集期部]$/.test(extra)) return 85;
+    return 70;
+  }
+
+  // Search term contains the result
+  if (s.includes(r)) return 50;
+
+  // Partial overlap — count matching characters
+  let matches = 0;
+  for (let i = 0; i < r.length && i < s.length; i++) {
+    if (r[i] === s[i]) matches++;
+    else break;
+  }
+  return matches;
+}
+
+function pickBestMatch(matches, searchTitle) {
+  if (matches.length === 0) return null;
+  if (matches.length === 1) return matches[0];
+
+  let best = matches[0];
+  let bestScore = matchScore(matches[0].name, searchTitle);
+
+  for (let i = 1; i < matches.length; i++) {
+    const score = matchScore(matches[i].name, searchTitle);
+    if (score > bestScore) {
+      bestScore = score;
+      best = matches[i];
+      if (score === 100) break; // perfect match
+    }
+  }
+
+  return best;
+}
+
 function parsePlayUrl(playUrl, playFrom) {
   if (!playUrl || typeof playUrl !== 'string') return [];
 
@@ -171,8 +228,9 @@ async function searchAndResolve(chiTitle, origTitle) {
   for (const title of searchTitles) {
     for (const site of activeSites) {
       const matches = await searchProvider(site, title);
-      if (matches.length > 0) {
-        const detail = await getProviderDetail(site, matches[0].vodId);
+      const best = pickBestMatch(matches, title);
+      if (best) {
+        const detail = await getProviderDetail(site, best.vodId);
         if (detail && detail.sources.length > 0) {
           detail.sources.sort((a, b) => {
             if (a.hasM3u8 && !b.hasM3u8) return -1;

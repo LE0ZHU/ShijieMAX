@@ -275,6 +275,75 @@ async function getPopularMovies(page = 1) {
   }));
 }
 
+async function getChinesePopularMovies(page = 1) {
+  const res = await tmdbClient.get('/discover/movie', {
+    params: {
+      page,
+      with_original_language: 'zh',
+      sort_by: 'popularity.desc',
+      'vote_count.gte': 50,
+    },
+  });
+  return res.data.results.map((item) => ({
+    id: item.id,
+    title: item.title,
+    originalTitle: item.original_title,
+    overview: item.overview,
+    posterUrl: getImageUrl(item.poster_path),
+    backdropUrl: getImageUrl(item.backdrop_path, 'original'),
+    rating: item.vote_average,
+    releaseDate: item.release_date,
+    genreIds: item.genre_ids,
+    type: 'movie',
+  }));
+}
+
+async function getChinesePopularTV(page = 1) {
+  const res = await tmdbClient.get('/discover/tv', {
+    params: {
+      page,
+      with_original_language: 'zh',
+      sort_by: 'popularity.desc',
+      'vote_count.gte': 50,
+    },
+  });
+  return res.data.results.map((item) => ({
+    id: item.id,
+    title: item.name,
+    originalTitle: item.original_name,
+    overview: item.overview,
+    posterUrl: getImageUrl(item.poster_path),
+    backdropUrl: getImageUrl(item.backdrop_path, 'original'),
+    rating: item.vote_average,
+    releaseDate: item.first_air_date,
+    genreIds: item.genre_ids,
+    type: 'tv',
+  }));
+}
+
+async function getJKPopularTV(page = 1) {
+  const res = await tmdbClient.get('/discover/tv', {
+    params: {
+      page,
+      with_origin_country: 'JP|KR',
+      sort_by: 'popularity.desc',
+      'vote_count.gte': 50,
+    },
+  });
+  return res.data.results.map((item) => ({
+    id: item.id,
+    title: item.name,
+    originalTitle: item.original_name,
+    overview: item.overview,
+    posterUrl: getImageUrl(item.poster_path),
+    backdropUrl: getImageUrl(item.backdrop_path, 'original'),
+    rating: item.vote_average,
+    releaseDate: item.first_air_date,
+    genreIds: item.genre_ids,
+    type: 'tv',
+  }));
+}
+
 async function getPopularTV(page = 1) {
   const res = await tmdbClient.get('/tv/popular', { params: { page } });
   return res.data.results.map((item) => ({
@@ -330,5 +399,8 @@ module.exports = {
   getTopRatedTV,
   getPopularMovies,
   getPopularTV,
+  getChinesePopularTV,
+  getChinesePopularMovies,
+  getJKPopularTV,
   getTVSeasonDetails,
 };

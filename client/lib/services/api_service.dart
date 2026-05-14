@@ -4,7 +4,7 @@ import '../models/movie.dart';
 import '../models/vod_source.dart';
 
 class ApiService {
-  // static const String baseUrl = 'http://192.168.31.176:3003'; 本地
+  // static const String baseUrl = 'http://192.168.31.176:3003'; // 本地
   static const String baseUrl = 'http://117.72.217.70:3003'; // 服务器
 
   static bool _parseSuccess(dynamic value) {
@@ -60,11 +60,23 @@ class ApiService {
   }
 
   static Future<List<Movie>> getTopRatedTV({int page = 1}) async {
-    return _fetchList('/api/tv/top_rated', page: page);
+    return _fetchList('/api/tv/top-rated', page: page);
   }
 
   static Future<List<Movie>> getPopularMovies({int page = 1}) async {
     return _fetchList('/api/movies/popular', page: page);
+  }
+
+  static Future<List<Movie>> getChinesePopularMovies({int page = 1}) async {
+    return _fetchList('/api/movies/chinese-popular', page: page);
+  }
+
+  static Future<List<Movie>> getChinesePopularTV({int page = 1}) async {
+    return _fetchList('/api/tv/chinese-popular', page: page);
+  }
+
+  static Future<List<Movie>> getJKPopularTV({int page = 1}) async {
+    return _fetchList('/api/tv/jk-popular', page: page);
   }
 
   static Future<List<Movie>> getPopularTV({int page = 1}) async {
