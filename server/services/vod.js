@@ -225,21 +225,32 @@ async function searchAndResolve(chiTitle, origTitle) {
     searchTitles.push(origTitle);
   }
 
+  // Collect candidates from all sites before picking the best one
+  const candidates = [];
+
   for (const title of searchTitles) {
     for (const site of activeSites) {
       const matches = await searchProvider(site, title);
       const best = pickBestMatch(matches, title);
       if (best) {
-        const detail = await getProviderDetail(site, best.vodId);
-        if (detail && detail.sources.length > 0) {
-          detail.sources.sort((a, b) => {
-            if (a.hasM3u8 && !b.hasM3u8) return -1;
-            if (!a.hasM3u8 && b.hasM3u8) return 1;
-            return 0;
-          });
-          return { found: true, ...detail };
-        }
+        const score = matchScore(best.name, title);
+        candidates.push({ site, best, score, searchTitle: title });
       }
+    }
+  }
+
+  // Sort candidates: exact match first, then by score descending
+  candidates.sort((a, b) => b.score - a.score);
+
+  for (const candidate of candidates) {
+    const detail = await getProviderDetail(candidate.site, candidate.best.vodId);
+    if (detail && detail.sources.length > 0) {
+      detail.sources.sort((a, b) => {
+        if (a.hasM3u8 && !b.hasM3u8) return -1;
+        if (!a.hasM3u8 && b.hasM3u8) return 1;
+        return 0;
+      });
+      return { found: true, ...detail };
     }
   }
 

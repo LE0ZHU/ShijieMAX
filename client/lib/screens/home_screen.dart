@@ -14,6 +14,7 @@ import 'favorites_screen.dart';
 import 'history_screen.dart';
 import 'player_screen.dart';
 import '../widgets/parallax_widget.dart';
+import '../widgets/shijie_refresh_indicator.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -39,6 +40,8 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _jkTVLoading = true;
   bool _topRatedLoading = true;
   bool _hasInitError = false;
+
+  bool _isPulling = false;
 
   Map<String, dynamic>? _lastWatched;
   bool _dismissedContinue = false;
@@ -330,13 +333,13 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    return RefreshIndicator(
-      color: const Color(0xFFE50914),
-      backgroundColor: theme.colorScheme.surface,
+    return ShijieRefreshIndicator(
       onRefresh: _loadData,
+      onPullActive: () => setState(() => _isPulling = true),
+      onPullIdle: () => setState(() => _isPulling = false),
       child: SingleChildScrollView(
         controller: _scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
+        physics: const BouncingScrollPhysics(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -348,7 +351,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               )
             else
-              HeroBanner(movies: _trendingMovies),
+              HeroBanner(movies: _trendingMovies, pauseAutoScroll: _isPulling),
             if (_lastWatched != null && !_dismissedContinue)
               _buildContinueWatching(),
             MovieSection(
@@ -460,44 +463,71 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildCategoryPage() {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final topPadding = MediaQuery.of(context).padding.top + kToolbarHeight + 12;
+    const tabBarHeight = 52.0;
+
     return DefaultTabController(
       length: 4,
-      child: Column(
+      child: Stack(
         children: [
-          SizedBox(height: MediaQuery.of(context).padding.top + kToolbarHeight + 16),
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: TabBar(
-              indicatorSize: TabBarIndicatorSize.tab,
-              indicator: const BoxDecoration(
-                color: Color(0xFFE50914),
-                borderRadius: BorderRadius.all(Radius.circular(12)),
+          // Content grid (scrolls behind TabBar)
+          Column(
+            children: [
+              SizedBox(height: topPadding + tabBarHeight + 12),
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    _buildVodCategoryGrid(_tvCategories, 'tv'),
+                    _buildVodCategoryGrid(_movieCategories, 'movie'),
+                    _buildVodCategoryGrid(_varietyCategories, 'tv'),
+                    _buildVodCategoryGrid(_animeCategories, 'tv'),
+                  ],
+                ),
               ),
-              dividerColor: Colors.transparent,
-              labelColor: Colors.white,
-              unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(0.4),
-              labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-              tabs: [
-                Tab(text: '电视剧'),
-                Tab(text: '电影'),
-                Tab(text: '综艺'),
-                Tab(text: '动漫'),
-              ],
-            ),
+            ],
           ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: TabBarView(
-              children: [
-                _buildVodCategoryGrid(_tvCategories, 'tv'),
-                _buildVodCategoryGrid(_movieCategories, 'movie'),
-                _buildVodCategoryGrid(_varietyCategories, 'tv'),
-                _buildVodCategoryGrid(_animeCategories, 'tv'),
-              ],
+          // Glass TabBar overlay
+          Positioned(
+            top: topPadding,
+            left: 0,
+            right: 0,
+            child: ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                child: Container(
+                  height: tabBarHeight,
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  decoration: BoxDecoration(
+                    color: theme.scaffoldBackgroundColor.withOpacity(0.78),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isDark
+                          ? Colors.white.withOpacity(0.06)
+                          : Colors.black.withOpacity(0.06),
+                    ),
+                  ),
+                  child: TabBar(
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    indicator: BoxDecoration(
+                      color: const Color(0xFFE50914),
+                      borderRadius: BorderRadius.all(Radius.circular(13)),
+                    ),
+                    dividerColor: Colors.transparent,
+                    labelColor: Colors.white,
+                    unselectedLabelColor:
+                        theme.colorScheme.onSurface.withOpacity(0.45),
+                    labelStyle:
+                        const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                    tabs: [
+                      Tab(text: '电视剧'),
+                      Tab(text: '电影'),
+                      Tab(text: '综艺'),
+                      Tab(text: '动漫'),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ],
@@ -510,15 +540,18 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 2.8,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
+        childAspectRatio: 2.2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
       ),
       itemCount: categories.length,
       itemBuilder: (context, index) {
         final cat = categories[index];
         final color = _categoryColors[index % _categoryColors.length];
-        return GestureDetector(
+        return _CategoryCard(
+          icon: cat['icon'] as IconData,
+          name: cat['name'] as String,
+          color: color,
           onTap: () {
             Navigator.push(context, PageRouteBuilder(
               transitionDuration: const Duration(milliseconds: 350),
@@ -538,27 +571,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
             ));
           },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: color.withOpacity(0.2)),
-            ),
-            child: Row(
-              children: [
-                Icon(cat['icon'] as IconData, color: color, size: 22),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    cat['name'] as String,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            ),
-          ),
         );
       },
     );
@@ -1048,6 +1060,118 @@ class _ProfileHeaderCardState extends State<_ProfileHeaderCard>
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _CategoryCard extends StatelessWidget {
+  final IconData icon;
+  final String name;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _CategoryCard({
+    required this.icon,
+    required this.name,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              color.withOpacity(isDark ? 0.18 : 0.12),
+              color.withOpacity(isDark ? 0.06 : 0.04),
+            ],
+          ),
+          border: Border.all(
+            color: color.withOpacity(isDark ? 0.2 : 0.15),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(isDark ? 0.08 : 0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: -8,
+              right: -8,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color.withOpacity(0.08),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(icon, color: color, size: 24),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '点击浏览',
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface.withOpacity(0.35),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: color.withOpacity(0.5),
+                    size: 22,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -8,8 +8,9 @@ import 'parallax_widget.dart';
 
 class HeroBanner extends StatefulWidget {
   final List<Movie> movies;
+  final bool pauseAutoScroll;
 
-  const HeroBanner({super.key, required this.movies});
+  const HeroBanner({super.key, required this.movies, this.pauseAutoScroll = false});
 
   @override
   State<HeroBanner> createState() => _HeroBannerState();
@@ -26,6 +27,7 @@ class _HeroBannerState extends State<HeroBanner> {
 
   void _startAutoScroll() {
     _stopAutoScroll();
+    if (widget.pauseAutoScroll) return;
     _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
       if (_itemCount <= 1) return;
       _pageController.nextPage(
@@ -47,6 +49,16 @@ class _HeroBannerState extends State<HeroBanner> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startAutoScroll();
     });
+  }
+
+  @override
+  void didUpdateWidget(HeroBanner oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.pauseAutoScroll && !oldWidget.pauseAutoScroll) {
+      _stopAutoScroll();
+    } else if (!widget.pauseAutoScroll && oldWidget.pauseAutoScroll) {
+      _startAutoScroll();
+    }
   }
 
   @override

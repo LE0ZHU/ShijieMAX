@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/movie.dart';
 import '../services/api_service.dart';
 import '../widgets/movie_card.dart';
+import '../widgets/shijie_refresh_indicator.dart';
 
 typedef MovieFetcher = Future<List<Movie>> Function({int page});
 
@@ -164,9 +165,7 @@ class _MovieListScreenState extends State<MovieListScreen> {
       );
     }
 
-    return RefreshIndicator(
-      color: const Color(0xFFE50914),
-      backgroundColor: theme.colorScheme.surface,
+    return ShijieRefreshIndicator(
       onRefresh: _refresh,
       child: NotificationListener<ScrollNotification>(
         onNotification: (ScrollNotification scrollInfo) {
