@@ -37,8 +37,28 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
 }
 
 flutter {
     source = "../.."
+}
+
+// Copy APK to ShijieMAX.apk after build
+tasks.register("copyApk") {
+    doLast {
+        val apkDir = file("$buildDir/outputs/flutter-apk")
+        val src = file("$apkDir/app-release.apk")
+        val dst = file("$apkDir/ShijieMAX.apk")
+        if (src.exists()) {
+            src.copyTo(dst, overwrite = true)
+            println("APK copied to ShijieMAX.apk")
+        }
+    }
+}
+
+tasks.whenTaskAdded {
+    if (name == "assembleRelease") {
+        finalizedBy("copyApk")
+    }
 }

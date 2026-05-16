@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/api_service.dart';
-import 'player_screen.dart';
+import 'movie_detail_screen.dart';
 import '../models/movie.dart';
-import '../models/vod_source.dart';
 
 class VodCategoryScreen extends StatefulWidget {
   final int typeId;
@@ -27,7 +26,6 @@ class _VodCategoryScreenState extends State<VodCategoryScreen> {
   String? _error;
   int _page = 1;
   bool _hasMore = true;
-  int? _loadingVodId;
 
   @override
   void initState() {
@@ -67,48 +65,31 @@ class _VodCategoryScreenState extends State<VodCategoryScreen> {
     await _loadData();
   }
 
-  Future<void> _onItemTap(Map<String, dynamic> item) async {
+  void _onItemTap(Map<String, dynamic> item) {
     final vodId = int.tryParse(item['vodId']?.toString() ?? '');
     if (vodId == null) return;
 
-    setState(() => _loadingVodId = vodId);
+    final name = item['name']?.toString() ?? '';
+    final pic = item['pic']?.toString() ?? '';
 
-    try {
-      final result = await ApiService.getVodDetail('ffzy', vodId);
-      if (!mounted) return;
-      setState(() => _loadingVodId = null);
-
-      if (!result.found || result.sources.isEmpty) {
-        _showSnack('未找到可播放资源');
-        return;
-      }
-
-      Navigator.push(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (c, a, sa) => PlayerScreen(movie: Movie(
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (c, a, sa) => MovieDetailScreen(
+          movieId: vodId,
+          type: widget.type,
+          skipTmdb: true,
+          preview: Movie(
             id: vodId,
-            title: result.title ?? item['name'] ?? '',
-            posterUrl: result.poster,
-            overview: result.description,
+            title: name,
+            posterUrl: pic.isNotEmpty ? pic : null,
             rating: 0,
-            releaseDate: result.year,
             type: widget.type,
-          )),
-          transitionsBuilder: (c, a, sa, child) => FadeTransition(opacity: a, child: child),
-          transitionDuration: const Duration(milliseconds: 300),
+          ),
         ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _loadingVodId = null);
-      _showSnack('加载失败');
-    }
-  }
-
-  void _showSnack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: const Color(0xFFE50914), duration: const Duration(seconds: 2)),
+        transitionsBuilder: (c, a, sa, child) => FadeTransition(opacity: a, child: child),
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
     );
   }
 
@@ -186,10 +167,9 @@ class _VodCategoryScreenState extends State<VodCategoryScreen> {
     final name = item['name']?.toString() ?? '';
     final pic = item['pic']?.toString() ?? '';
     final remark = item['remark']?.toString() ?? '';
-    final isLoading = _loadingVodId == vodId;
 
     return GestureDetector(
-      onTap: isLoading ? null : () => _onItemTap(item),
+      onTap: () => _onItemTap(item),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -199,15 +179,17 @@ class _VodCategoryScreenState extends State<VodCategoryScreen> {
                 borderRadius: BorderRadius.circular(10),
                 boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 5))],
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    if (pic.isNotEmpty)
-                      CachedNetworkImage(imageUrl: pic, fit: BoxFit.cover, errorWidget: (_, __, ___) => _buildPlaceholder(name))
-                    else
-                      _buildPlaceholder(name),
+              child: Hero(
+                tag: 'movie_poster_${vodId ?? 0}',
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (pic.isNotEmpty)
+                        CachedNetworkImage(imageUrl: pic, fit: BoxFit.cover, errorWidget: (_, __, ___) => _buildPlaceholder(name))
+                      else
+                        _buildPlaceholder(name),
                     Positioned(
                       bottom: 0, left: 0, right: 0,
                       child: Container(
@@ -230,11 +212,10 @@ class _VodCategoryScreenState extends State<VodCategoryScreen> {
                           child: Text(remark, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w600)),
                         ),
                       ),
-                    if (isLoading)
-                      const Center(child: CircularProgressIndicator(color: Color(0xFFE50914), strokeWidth: 2)),
                   ],
                 ),
               ),
+            ),
             ),
           ),
           const SizedBox(height: 8),

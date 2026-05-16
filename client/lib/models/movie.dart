@@ -16,6 +16,7 @@ class Movie {
   final String type;
   final int? numberOfSeasons;
   final int? numberOfEpisodes;
+  final List<Map<String, dynamic>>? cast;
 
   Movie({
     required this.id,
@@ -35,6 +36,7 @@ class Movie {
     this.type = 'movie',
     this.numberOfSeasons,
     this.numberOfEpisodes,
+    this.cast,
   });
 
   factory Movie.fromJson(Map<String, dynamic> json) {
@@ -60,6 +62,7 @@ class Movie {
       type: json['type']?.toString() ?? json['mediaType']?.toString() ?? 'movie',
       numberOfSeasons: json['numberOfSeasons'] != null ? (json['numberOfSeasons'] as num).toInt() : null,
       numberOfEpisodes: json['numberOfEpisodes'] != null ? (json['numberOfEpisodes'] as num).toInt() : null,
+      cast: json['cast'] is List ? List<Map<String, dynamic>>.from(json['cast']) : null,
     );
   }
 
@@ -82,6 +85,7 @@ class Movie {
       'type': type,
       'numberOfSeasons': numberOfSeasons,
       'numberOfEpisodes': numberOfEpisodes,
+      'cast': cast,
     };
   }
 

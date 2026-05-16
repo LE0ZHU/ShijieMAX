@@ -354,18 +354,21 @@ class _SearchScreenState extends State<SearchScreen> {
           child: Row(
             children: [
               // Cover / placeholder
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: SizedBox(
-                  width: 70,
-                  height: 100,
-                  child: tmdbCover != null
-                      ? CachedNetworkImage(
-                          imageUrl: tmdbCover,
-                          fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) => _buildCoverPlaceholder(name),
-                        )
-                      : _buildCoverPlaceholder(name),
+              Hero(
+                tag: 'movie_poster_${vodId ?? 0}',
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: SizedBox(
+                    width: 70,
+                    height: 100,
+                    child: tmdbCover != null
+                        ? CachedNetworkImage(
+                            imageUrl: tmdbCover,
+                            fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) => _buildCoverPlaceholder(name),
+                          )
+                        : _buildCoverPlaceholder(name),
+                  ),
                 ),
               ),
               const SizedBox(width: 14),

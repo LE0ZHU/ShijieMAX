@@ -99,8 +99,16 @@ async function getTrendingTV(timeWindow = 'week', page = 1) {
 }
 
 async function getMovieDetails(movieId) {
-  const res = await tmdbClient.get(`/movie/${movieId}`);
-  const data = res.data;
+  const [detailRes, creditsRes] = await Promise.all([
+    tmdbClient.get(`/movie/${movieId}`),
+    tmdbClient.get(`/movie/${movieId}/credits`),
+  ]);
+  const data = detailRes.data;
+  const cast = (creditsRes.data.cast || []).slice(0, 12).map((c) => ({
+    name: c.name,
+    character: c.character,
+    profileUrl: getImageUrl(c.profile_path, 'w185'),
+  }));
   return {
     id: data.id,
     title: data.title,
@@ -115,13 +123,22 @@ async function getMovieDetails(movieId) {
     tagline: data.tagline,
     status: data.status,
     homepage: data.homepage,
+    cast,
     type: 'movie',
   };
 }
 
 async function getTVDetails(tvId) {
-  const res = await tmdbClient.get(`/tv/${tvId}`);
-  const data = res.data;
+  const [detailRes, creditsRes] = await Promise.all([
+    tmdbClient.get(`/tv/${tvId}`),
+    tmdbClient.get(`/tv/${tvId}/credits`),
+  ]);
+  const data = detailRes.data;
+  const cast = (creditsRes.data.cast || []).slice(0, 12).map((c) => ({
+    name: c.name,
+    character: c.character,
+    profileUrl: getImageUrl(c.profile_path, 'w185'),
+  }));
   return {
     id: data.id,
     title: data.name,
@@ -137,6 +154,7 @@ async function getTVDetails(tvId) {
     status: data.status,
     numberOfSeasons: data.number_of_seasons,
     numberOfEpisodes: data.number_of_episodes,
+    cast,
     type: 'tv',
   };
 }

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/movie.dart';
 import '../models/vod_source.dart';
 import '../services/api_service.dart';
@@ -87,7 +89,112 @@ class _PlayerScreenState extends State<PlayerScreen> {
     } catch (_) {}
   }
 
+  Future<bool> _checkNetworkBeforePlay() async {
+    try {
+      final result = await Connectivity().checkConnectivity();
+      // Only warn on mobile data
+      if (!result.contains(ConnectivityResult.mobile)) return true;
+
+      final prefs = await SharedPreferences.getInstance();
+      final skipWarning = prefs.getBool('skip_mobile_data_warning') ?? false;
+      if (skipWarning) return true;
+
+      if (!mounted) return false;
+
+      final choice = await showDialog<String>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) {
+          final dialogTheme = Theme.of(ctx);
+          final isDark = dialogTheme.brightness == Brightness.dark;
+          return AlertDialog(
+            backgroundColor: dialogTheme.colorScheme.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFAA00).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.signal_cellular_alt, color: Color(0xFFFFAA00), size: 22),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  '流量提醒',
+                  style: TextStyle(
+                    color: dialogTheme.colorScheme.onSurface,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            content: Text(
+              '您正在使用移动数据网络，播放视频将消耗较多流量，是否继续？',
+              style: TextStyle(
+                color: dialogTheme.colorScheme.onSurface.withOpacity(0.7),
+                fontSize: 14,
+                height: 1.6,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, 'back'),
+                child: Text(
+                  '返回',
+                  style: TextStyle(
+                    color: dialogTheme.colorScheme.onSurface.withOpacity(0.5),
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () async {
+                  await prefs.setBool('skip_mobile_data_warning', true);
+                  if (ctx.mounted) Navigator.pop(ctx, 'play');
+                },
+                child: const Text(
+                  '不再提示',
+                  style: TextStyle(color: Color(0xFFE50914), fontSize: 14),
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFE50914),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                ),
+                onPressed: () => Navigator.pop(ctx, 'play'),
+                child: const Text('继续播放', style: TextStyle(fontWeight: FontWeight.w600)),
+              ),
+            ],
+          );
+        },
+      );
+
+      return choice == 'play';
+    } catch (_) {
+      return true; // If we can't check, proceed anyway
+    }
+  }
+
   Future<void> _initPlayer() async {
+    // Check network type before playing
+    final canPlay = await _checkNetworkBeforePlay();
+    if (!canPlay) {
+      if (mounted) Navigator.pop(context);
+      return;
+    }
+
     setState(() => _isLoadingVod = true);
 
     // Try cache first for instant loading

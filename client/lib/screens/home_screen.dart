@@ -1,9 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../models/movie.dart';
-import '../providers/theme_provider.dart';
 import '../services/api_service.dart';
 import '../services/local_storage_service.dart';
 import '../widgets/movie_section.dart';
@@ -13,6 +11,7 @@ import 'movie_list_screen.dart';
 import 'favorites_screen.dart';
 import 'history_screen.dart';
 import 'player_screen.dart';
+import 'settings_screen.dart';
 import '../widgets/parallax_widget.dart';
 import '../widgets/shijie_refresh_indicator.dart';
 
@@ -335,6 +334,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return ShijieRefreshIndicator(
       onRefresh: _loadData,
+      triggerPullDistance: 100.0,
       onPullActive: () => setState(() => _isPulling = true),
       onPullIdle: () => setState(() => _isPulling = false),
       child: SingleChildScrollView(
@@ -661,109 +661,11 @@ class _HomeScreenState extends State<HomeScreen> {
             child: _buildProfileItem(Icons.history, '观看历史'),
           ),
           const SizedBox(height: 16),
-          _buildThemeSection(),
+          GestureDetector(
+            onTap: () => _navigateToListScreen(context, const SettingsScreen()),
+            child: _buildProfileItem(Icons.settings, '设置'),
+          ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildThemeSection() {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final surfaceColor = isDark ? const Color(0xFF16161E) : Colors.white;
-    final textColor = isDark ? const Color(0xFFE0E0E8) : const Color(0xFF1A1A2E);
-    final subtitleColor = isDark ? const Color(0xFF5A5A6E) : const Color(0xFF9E9E9E);
-
-    return Consumer<ThemeProvider>(
-      builder: (context, provider, _) {
-        return Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: surfaceColor,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.palette_outlined, color: subtitleColor, size: 20),
-                  const SizedBox(width: 10),
-                  Text(
-                    '外观设置',
-                    style: TextStyle(color: textColor, fontSize: 15, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              _buildThemeOption(
-                icon: Icons.phone_android,
-                title: '跟随系统',
-                selected: provider.isSystem,
-                onTap: () => provider.setThemeMode(ThemeMode.system),
-                textColor: textColor,
-                subtitleColor: subtitleColor,
-              ),
-              _buildThemeOption(
-                icon: Icons.dark_mode,
-                title: '深色模式',
-                selected: provider.isDark,
-                onTap: () => provider.setThemeMode(ThemeMode.dark),
-                textColor: textColor,
-                subtitleColor: subtitleColor,
-              ),
-              _buildThemeOption(
-                icon: Icons.light_mode,
-                title: '浅色模式',
-                selected: provider.isLight,
-                onTap: () => provider.setThemeMode(ThemeMode.light),
-                textColor: textColor,
-                subtitleColor: subtitleColor,
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildThemeOption({
-    required IconData icon,
-    required String title,
-    required bool selected,
-    required VoidCallback onTap,
-    required Color textColor,
-    required Color subtitleColor,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(top: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFFE50914).withOpacity(0.12) : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: selected ? const Color(0xFFE50914) : subtitleColor, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  color: selected ? const Color(0xFFE50914) : textColor,
-                  fontSize: 14,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                ),
-              ),
-            ),
-            if (selected)
-              const Icon(Icons.check_circle, color: Color(0xFFE50914), size: 20)
-            else
-              Icon(Icons.circle_outlined, color: subtitleColor.withOpacity(0.4), size: 20),
-          ],
-        ),
       ),
     );
   }
@@ -1107,21 +1009,23 @@ class _CategoryCard extends StatelessWidget {
             ),
           ],
         ),
-        child: Stack(
-          children: [
-            Positioned(
-              top: -8,
-              right: -8,
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: color.withOpacity(0.08),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            children: [
+              Positioned(
+                top: -8,
+                right: -8,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: color.withOpacity(0.08),
+                  ),
                 ),
               ),
-            ),
-            Padding(
+              Padding(
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
               child: Row(
                 children: [
@@ -1170,7 +1074,8 @@ class _CategoryCard extends StatelessWidget {
                 ],
               ),
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );
