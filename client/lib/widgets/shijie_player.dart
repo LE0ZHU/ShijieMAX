@@ -241,10 +241,10 @@ class _ShijiePlayerState extends State<ShijiePlayer> with TickerProviderStateMix
   }
 
   String _fmtSeek(Duration d) {
-    final abs = d.inSeconds.abs();
-    final m = (abs ~/ 60).toString().padLeft(2, '0');
-    final s = (abs % 60).toString().padLeft(2, '0');
-    return '$m:$s';
+    final h = d.inHours.abs();
+    final m = d.inMinutes.abs().remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.abs().remainder(60).toString().padLeft(2, '0');
+    return h > 0 ? '$h:$m:$s' : '$m:$s';
   }
 
   // --- Build ---
@@ -445,10 +445,10 @@ class _FullscreenPlayerState extends State<_FullscreenPlayer> with TickerProvide
   }
 
   String _fmtSeek(Duration d) {
-    final abs = d.inSeconds.abs();
-    final m = (abs ~/ 60).toString().padLeft(2, '0');
-    final s = (abs % 60).toString().padLeft(2, '0');
-    return '$m:$s';
+    final h = d.inHours.abs();
+    final m = d.inMinutes.abs().remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.abs().remainder(60).toString().padLeft(2, '0');
+    return h > 0 ? '$h:$m:$s' : '$m:$s';
   }
 
   @override

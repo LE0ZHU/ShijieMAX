@@ -23,7 +23,7 @@ class _HeroBannerState extends State<HeroBanner> {
 
   static const int _maxPageCount = 10000;
   int get _itemCount => widget.movies.length > 5 ? 5 : widget.movies.length;
-  int get _startIndex => (_maxPageCount ~/ 2) - ((_maxPageCount ~/ 2) % _itemCount);
+  int get _startIndex => _itemCount == 0 ? 0 : (_maxPageCount ~/ 2) - ((_maxPageCount ~/ 2) % _itemCount);
 
   void _startAutoScroll() {
     _stopAutoScroll();

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/theme_provider.dart';
+import '../data/changelog.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -38,6 +39,8 @@ class SettingsScreen extends StatelessWidget {
             _buildThemeSection(context),
             const SizedBox(height: 16),
             _buildDownloadSection(context),
+            const SizedBox(height: 16),
+            _buildChangelogSection(context),
           ],
         ),
       ),
@@ -266,5 +269,207 @@ class SettingsScreen extends StatelessWidget {
         }
       }
     }
+  }
+
+  // ── Changelog Section ──
+
+  Widget _buildChangelogSection(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final surfaceColor = isDark ? const Color(0xFF16161E) : Colors.white;
+    final textColor = isDark ? const Color(0xFFE0E0E8) : const Color(0xFF1A1A2E);
+    final subtitleColor = isDark ? const Color(0xFF5A5A6E) : const Color(0xFF9E9E9E);
+
+    return GestureDetector(
+      onTap: () => _showChangelog(context),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: surfaceColor,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE50914).withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.article_outlined, color: Color(0xFFE50914), size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '更新日志',
+                    style: TextStyle(color: textColor, fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'v${changelog.first.version} · ${changelog.first.date}',
+                    style: TextStyle(color: subtitleColor, fontSize: 12, fontWeight: FontWeight.w400),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: subtitleColor.withOpacity(0.5), size: 22),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showChangelog(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textColor = isDark ? const Color(0xFFE0E0E8) : const Color(0xFF1A1A2E);
+    final subtitleColor = isDark ? const Color(0xFF5A5A6E) : const Color(0xFF9E9E9E);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: theme.colorScheme.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.3,
+        maxChildSize: 0.85,
+        expand: false,
+        builder: (ctx, controller) => Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 12, bottom: 8),
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: subtitleColor.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE50914).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.article_outlined, color: Color(0xFFE50914), size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    '更新日志',
+                    style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView.builder(
+                controller: controller,
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                itemCount: changelog.length,
+                itemBuilder: (ctx, index) {
+                  final entry = changelog[index];
+                  final isLatest = index == 0;
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: index < changelog.length - 1 ? 20 : 0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Column(
+                          children: [
+                            Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: isLatest ? const Color(0xFFE50914) : subtitleColor.withOpacity(0.4),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            if (index < changelog.length - 1)
+                              Container(
+                                width: 2,
+                                height: entry.changes.length * 28.0 + 16,
+                                color: subtitleColor.withOpacity(0.15),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    'v${entry.version}',
+                                    style: TextStyle(
+                                      color: isLatest ? const Color(0xFFE50914) : textColor,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    entry.date,
+                                    style: TextStyle(color: subtitleColor, fontSize: 12),
+                                  ),
+                                  if (isLatest) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFE50914).withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Text(
+                                        '最新',
+                                        style: TextStyle(color: Color(0xFFE50914), fontSize: 10, fontWeight: FontWeight.w600),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              ...entry.changes.map((c) => Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('· ', style: TextStyle(color: subtitleColor, fontSize: 13)),
+                                    Expanded(
+                                      child: Text(
+                                        c,
+                                        style: TextStyle(color: textColor.withOpacity(0.8), fontSize: 13, height: 1.4),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
