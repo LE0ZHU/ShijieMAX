@@ -7,7 +7,9 @@ import '../services/api_service.dart';
 import 'player_screen.dart';
 
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+  final String? initialQuery;
+  
+  const SearchScreen({super.key, this.initialQuery});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -21,6 +23,15 @@ class _SearchScreenState extends State<SearchScreen> {
   String? _error;
   bool _hasSearched = false;
   int? _loadingVodId;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialQuery != null && widget.initialQuery!.isNotEmpty) {
+      _searchController.text = widget.initialQuery!;
+      Future.microtask(() => _performSearch(widget.initialQuery!));
+    }
+  }
 
   @override
   void dispose() {

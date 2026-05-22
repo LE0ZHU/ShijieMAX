@@ -2,14 +2,33 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/movie.dart';
 import '../models/vod_source.dart';
+import '../models/chat_session.dart';
 
 class LocalStorageService {
   static const _favKey = 'favorites';
   static const _historyKey = 'history';
   static const _vodCacheKey = 'vod_cache';
+  static const _groqApiKeyKey = 'groq_api_key';
   static const _maxHistory = 50;
   static const _maxVodCache = 30;
   static const _vodCacheExpiry = Duration(hours: 24);
+
+  // --- Groq API Key ---
+
+  static Future<String?> getGroqApiKey() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_groqApiKeyKey);
+  }
+
+  static Future<void> setGroqApiKey(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_groqApiKeyKey, key);
+  }
+
+  static Future<void> clearGroqApiKey() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_groqApiKeyKey);
+  }
 
   // --- Favorites ---
 
@@ -161,5 +180,97 @@ class LocalStorageService {
       list.removeRange(_maxVodCache, list.length);
     }
     await prefs.setString(_vodCacheKey, jsonEncode(list));
+  }
+
+  // --- Chat Sessions ---
+
+  static const _chatKey = 'chat_sessions';
+  static const _maxChatSessions = 50;
+
+  static Future<List<ChatSession>> getChatSessions() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_chatKey);
+    if (raw == null || raw.isEmpty) return [];
+    try {
+      final List<dynamic> list = jsonDecode(raw);
+      return list.map((e) => ChatSession.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  static Future<ChatSession?> getChatSession(String id) async {
+    final sessions = await getChatSessions();
+    return sessions.firstWhere((s) => s.id == id, orElse: () => ChatSession.create());
+  }
+
+  static Future<void> saveChatSession(ChatSession session) async {
+    final prefs = await SharedPreferences.getInstance();
+    final sessions = await getChatSessions();
+    final index = sessions.indexWhere((s) => s.id == session.id);
+    if (index >= 0) {
+      sessions[index] = session;
+    } else {
+      sessions.add(session);
+    }
+    // Sort by updated time (newest first)
+    sessions.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    // Limit to max sessions
+    if (sessions.length > _maxChatSessions) {
+      sessions.removeRange(_maxChatSessions, sessions.length);
+    }
+    await prefs.setString(_chatKey, jsonEncode(sessions.map((s) => s.toJson()).toList()));
+  }
+
+  static Future<void> deleteChatSession(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final sessions = await getChatSessions();
+    sessions.removeWhere((s) => s.id == id);
+    await prefs.setString(_chatKey, jsonEncode(sessions.map((s) => s.toJson()).toList()));
+  }
+
+  static Future<void> clearAllChatSessions() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_chatKey);
+  }
+
+  static Future<void> updateChatSessionTitle(String id, String title) async {
+    final sessions = await getChatSessions();
+    final index = sessions.indexWhere((s) => s.id == id);
+    if (index >= 0) {
+      sessions[index] = ChatSession(
+        id: sessions[index].id,
+        title: title,
+        createdAt: sessions[index].createdAt,
+        updatedAt: DateTime.now(),
+        messages: sessions[index].messages,
+      );
+      await saveChatSession(sessions[index]);
+    }
+  }
+
+  // --- Current AI Chat Session (for session persistence across panel close/open) ---
+
+  static const _currentAiChatKey = 'current_ai_chat_session';
+
+  static Future<ChatSession?> getCurrentAiChatSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_currentAiChatKey);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      return ChatSession.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> saveCurrentAiChatSession(ChatSession session) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_currentAiChatKey, jsonEncode(session.toJson()));
+  }
+
+  static Future<void> clearCurrentAiChatSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_currentAiChatKey);
   }
 }

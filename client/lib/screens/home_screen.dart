@@ -14,6 +14,7 @@ import 'player_screen.dart';
 import 'settings_screen.dart';
 import '../widgets/parallax_widget.dart';
 import '../widgets/shijie_refresh_indicator.dart';
+import 'ai_chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -537,7 +538,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildVodCategoryGrid(List<Map<String, dynamic>> categories, String type) {
     return GridView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         childAspectRatio: 2.2,
@@ -649,7 +650,7 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          SizedBox(height: MediaQuery.of(context).padding.top + kToolbarHeight),
+          SizedBox(height: MediaQuery.of(context).padding.top),
           const _ProfileHeaderCard(),
           const SizedBox(height: 24),
           GestureDetector(
@@ -694,156 +695,168 @@ class _HomeScreenState extends State<HomeScreen> {
     final pages = [
       _buildHomePage(),
       _buildCategoryPage(),
+      AiChatScreen(),
       _buildProfilePage(),
     ];
 
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      extendBodyBehindAppBar: true,
-      extendBody: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        flexibleSpace: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12 * _blurOpacity, sigmaY: 12 * _blurOpacity),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              color: theme.scaffoldBackgroundColor.withOpacity(0.65 * _blurOpacity),
-            ),
-          ),
-        ),
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.movie_filter, color: Color(0xFFE50914), size: 26),
-            SizedBox(width: 10),
-            Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(
-                    text: '视界',
-                    style: TextStyle(
-                      color: theme.colorScheme.onSurface,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  TextSpan(
-                    text: 'MAX',
-                    style: TextStyle(
-                      color: Color(0xFFE50914),
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 3,
-                    ),
-                  ),
-                ],
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: theme.scaffoldBackgroundColor,
+          extendBodyBehindAppBar: true,
+          extendBody: true,
+          appBar: (_selectedIndex == 2 || _selectedIndex == 3)
+              ? null
+              : AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            flexibleSpace: ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 12 * _blurOpacity, sigmaY: 12 * _blurOpacity),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  color: theme.scaffoldBackgroundColor.withOpacity(0.65 * _blurOpacity),
+                ),
               ),
             ),
-          ],
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 4),
-            child: GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  PageRouteBuilder(
-                    transitionDuration: const Duration(milliseconds: 400),
-                    reverseTransitionDuration: const Duration(milliseconds: 300),
-                    pageBuilder: (context, animation, secondaryAnimation) => const SearchScreen(),
-                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                      return FadeTransition(opacity: animation, child: child);
-                    },
-                  ),
-                );
-              },
-              child: Hero(
-                tag: 'search_bar',
-                child: Material(
-                  type: MaterialType.transparency,
-                  child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.06),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.08)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.movie_filter, color: Color(0xFFE50914), size: 26),
+                SizedBox(width: 10),
+                Text.rich(
+                  TextSpan(
                     children: [
-                      Icon(Icons.search, color: isDark ? const Color(0xFFB0B0C0) : const Color(0xFF757575), size: 18),
-                      const SizedBox(width: 6),
-                      Text(
-                        '搜索',
-                        style: TextStyle(color: isDark ? const Color(0xFFB0B0C0) : const Color(0xFF757575), fontSize: 14, fontWeight: FontWeight.w500),
+                      TextSpan(
+                        text: '视界',
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurface,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                      TextSpan(
+                        text: 'MAX',
+                        style: TextStyle(
+                          color: Color(0xFFE50914),
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      PageRouteBuilder(
+                        transitionDuration: const Duration(milliseconds: 400),
+                        reverseTransitionDuration: const Duration(milliseconds: 300),
+                        pageBuilder: (context, animation, secondaryAnimation) => const SearchScreen(),
+                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                          return FadeTransition(opacity: animation, child: child);
+                        },
+                      ),
+                    );
+                  },
+                  child: Hero(
+                    tag: 'search_bar',
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.06),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.08)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.search, color: isDark ? const Color(0xFFB0B0C0) : const Color(0xFF757575), size: 18),
+                            const SizedBox(width: 6),
+                            Text(
+                              '搜索',
+                              style: TextStyle(color: isDark ? const Color(0xFFB0B0C0) : const Color(0xFF757575), fontSize: 14, fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
+          ),
+          body: pages[_selectedIndex],
+          bottomNavigationBar: ClipRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: theme.scaffoldBackgroundColor.withOpacity(0.85),
+                  border: Border(
+                    top: BorderSide(
+                      color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.08),
+                      width: 0.5,
+                    ),
+                  ),
+                ),
+                child: Theme(
+                  data: Theme.of(context).copyWith(
+                    splashFactory: NoSplash.splashFactory,
+                    highlightColor: const Color(0xFFE50914).withOpacity(0.08),
+                  ),
+                  child: BottomNavigationBar(
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    type: BottomNavigationBarType.fixed,
+                    selectedFontSize: 11,
+                    unselectedFontSize: 11,
+                    currentIndex: _selectedIndex,
+                    onTap: (index) {
+                      setState(() {
+                        _selectedIndex = index;
+                      });
+                    },
+                    items: const [
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.home_outlined),
+                        activeIcon: Icon(Icons.home),
+                        label: '首页',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.explore_outlined),
+                        activeIcon: Icon(Icons.explore),
+                        label: '发现',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.auto_awesome_outlined),
+                        activeIcon: Icon(Icons.auto_awesome),
+                        label: 'AI找片',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.person_outline),
+                        activeIcon: Icon(Icons.person),
+                        label: '我的',
                       ),
                     ],
                   ),
                 ),
               ),
             ),
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: pages[_selectedIndex],
-      bottomNavigationBar: ClipRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
-            decoration: BoxDecoration(
-              color: theme.scaffoldBackgroundColor.withOpacity(0.85),
-              border: Border(
-                top: BorderSide(
-                  color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.08),
-                  width: 0.5,
-                ),
-              ),
-            ),
-            child: Theme(
-              data: Theme.of(context).copyWith(
-                splashFactory: NoSplash.splashFactory,
-                highlightColor: const Color(0xFFE50914).withOpacity(0.08),
-              ),
-              child: BottomNavigationBar(
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                type: BottomNavigationBarType.fixed,
-                selectedFontSize: 11,
-                unselectedFontSize: 11,
-                currentIndex: _selectedIndex,
-                onTap: (index) {
-                  setState(() {
-                    _selectedIndex = index;
-                  });
-                },
-              items: const [
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.home_outlined),
-                  activeIcon: Icon(Icons.home),
-                  label: '首页',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.explore_outlined),
-                  activeIcon: Icon(Icons.explore),
-                  label: '发现',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.person_outline),
-                  activeIcon: Icon(Icons.person),
-                  label: '我的',
-                ),
-              ],
-            ),
-            ),
           ),
         ),
-      ),
+      ],
     );
   }
 }
