@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:screen_brightness/screen_brightness.dart';
 import 'package:video_player/video_player.dart';
 
 class ShijiePlayer extends StatefulWidget {
@@ -23,16 +24,15 @@ class ShijiePlayer extends StatefulWidget {
   State<ShijiePlayer> createState() => _ShijiePlayerState();
 }
 
-class _ShijiePlayerState extends State<ShijiePlayer> with TickerProviderStateMixin {
+// ── Shared player logic mixin ──────────────────────────────────
+
+mixin _PlayerControllerMixin<T extends StatefulWidget> on State<T> {
+  VideoPlayerController get ctl;
+
   bool _showControls = true;
   Timer? _hideTimer;
   Timer? _uiTimer;
-  bool _isLocked = false;
-  bool _isFullscreenActive = false;
-  bool _videoEndedInFullscreen = false;
   double _playbackSpeed = 1.0;
-
-  static const _speedOptions = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 
   double _startDx = 0;
   double _startDy = 0;
@@ -43,27 +43,180 @@ class _ShijiePlayerState extends State<ShijiePlayer> with TickerProviderStateMix
   bool _isVolumeAdjust = false;
   bool _isSeekingForward = false;
   String _adjustHint = '';
+  double _seekTargetMs = 0;
 
   late AnimationController _playIconController;
   late Animation<double> _playIconAnim;
 
-  VideoPlayerController get _ctl => widget.controller;
+  static const speedOptions = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+
+  void initPlayerMixin() {
+    _playIconController = AnimationController(
+      vsync: this as TickerProvider,
+      duration: const Duration(milliseconds: 300),
+    );
+    _playIconAnim = CurvedAnimation(parent: _playIconController, curve: Curves.easeOut);
+    ctl.addListener(_onCtlUpdate);
+    _startUiTimer();
+    _startAutoHide();
+    _initBrightness();
+  }
+
+  void disposePlayerMixin() {
+    ctl.removeListener(_onCtlUpdate);
+    _hideTimer?.cancel();
+    _uiTimer?.cancel();
+    _playIconController.dispose();
+    _restoreBrightness();
+  }
+
+  Future<void> _initBrightness() async {
+    try {
+      _startBrightness = await ScreenBrightness().application;
+    } catch (_) {
+      _startBrightness = 0.5;
+    }
+  }
+
+  Future<void> _restoreBrightness() async {
+    try {
+      await ScreenBrightness().resetApplicationScreenBrightness();
+    } catch (_) {}
+  }
+
+  void _onCtlUpdate() {
+    if (mounted) setState(() {});
+  }
+
+  void _startUiTimer() {
+    _uiTimer?.cancel();
+    _uiTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  void _startAutoHide() {
+    _hideTimer?.cancel();
+    if (!ctl.value.isPlaying) return;
+    _hideTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted && _showControls) setState(() => _showControls = false);
+    });
+  }
+
+  void toggleControls() {
+    setState(() {
+      _showControls = !_showControls;
+      if (_showControls) {
+        if (ctl.value.isPlaying) _startAutoHide();
+      } else {
+        _hideTimer?.cancel();
+      }
+    });
+  }
+
+  void togglePlay() {
+    if (ctl.value.isPlaying) {
+      ctl.pause();
+    } else {
+      ctl.play();
+    }
+    _playIconController.forward(from: 0);
+    _startAutoHide();
+    setState(() {});
+  }
+
+  void setPlaybackSpeed(double speed) {
+    ctl.setPlaybackSpeed(speed);
+    setState(() => _playbackSpeed = speed);
+  }
+
+  void onPanStart(DragStartDetails d, Size size) {
+    _startDx = d.localPosition.dx;
+    _startDy = d.localPosition.dy;
+    _isSeeking = false;
+    _isAdjusting = false;
+    _startVolume = (ctl.value.volume * 100).round() / 100;
+    _seekTargetMs = ctl.value.position.inMilliseconds.toDouble();
+  }
+
+  void onPanUpdate(DragUpdateDetails d, Size size) {
+    final dx = d.localPosition.dx - _startDx;
+    final accumulatedDy = _startDy - d.localPosition.dy;
+
+    if (!_isAdjusting && dx.abs() > 8) {
+      _isSeeking = true;
+      _isSeekingForward = dx > 0;
+      final dur = ctl.value.duration.inMilliseconds.toDouble();
+      _seekTargetMs = (_seekTargetMs + dx * 80).clamp(0.0, dur);
+      _startDx = d.localPosition.dx;
+      final target = Duration(milliseconds: _seekTargetMs.round());
+      _adjustHint = '${fmtSeek(target)} / ${fmtSeek(ctl.value.duration)}';
+      setState(() {});
+    }
+
+    if (!_isSeeking && accumulatedDy.abs() > 8) {
+      _isAdjusting = true;
+      final ratio = accumulatedDy / (size.height * 0.6);
+      if (d.localPosition.dx > size.width * 0.65) {
+        final newVol = (_startVolume + ratio).clamp(0.0, 1.0);
+        ctl.setVolume(newVol);
+        _isVolumeAdjust = true;
+        _adjustHint = '${(newVol * 100).round()}%';
+      } else if (d.localPosition.dx < size.width * 0.35) {
+        final newBright = (_startBrightness + ratio).clamp(0.0, 1.0);
+        ScreenBrightness().setApplicationScreenBrightness(newBright);
+        _startBrightness = newBright;
+        _isVolumeAdjust = false;
+        _adjustHint = '${(newBright * 100).round()}%';
+      }
+      setState(() {});
+    }
+  }
+
+  void onPanEnd(DragEndDetails d) {
+    if (_isSeeking) {
+      ctl.seekTo(Duration(milliseconds: _seekTargetMs.round()));
+    }
+    _isSeeking = false;
+    _isAdjusting = false;
+    _adjustHint = '';
+    _startAutoHide();
+  }
+
+  static String fmtSeek(Duration d) {
+    final h = d.inHours.abs();
+    final m = d.inMinutes.abs().remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.abs().remainder(60).toString().padLeft(2, '0');
+    return h > 0 ? '$h:$m:$s' : '$m:$s';
+  }
+
+  static String fmtTime(Duration d) {
+    final h = d.inHours;
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return h > 0 ? '$h:$m:$s' : '$m:$s';
+  }
+}
+
+// ── Inline player state ────────────────────────────────────────
+
+class _ShijiePlayerState extends State<ShijiePlayer> with TickerProviderStateMixin, _PlayerControllerMixin<ShijiePlayer> {
+  bool _isFullscreenActive = false;
+  bool _videoEndedInFullscreen = false;
+
+  @override
+  VideoPlayerController get ctl => widget.controller;
 
   @override
   void initState() {
     super.initState();
-    _playIconController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-    _playIconAnim = CurvedAnimation(parent: _playIconController, curve: Curves.easeOut);
-    _ctl.addListener(_onCtlUpdate);
-    _startUiTimer();
-    _startAutoHide();
+    initPlayerMixin();
   }
 
+  @override
   void _onCtlUpdate() {
-    if (!_ctl.value.isCompleted) return;
+    if (mounted) setState(() {});
+    if (!ctl.value.isCompleted) return;
     if (_isFullscreenActive) {
       _videoEndedInFullscreen = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -76,61 +229,8 @@ class _ShijiePlayerState extends State<ShijiePlayer> with TickerProviderStateMix
 
   @override
   void dispose() {
-    _ctl.removeListener(_onCtlUpdate);
-    _hideTimer?.cancel();
-    _uiTimer?.cancel();
-    _playIconController.dispose();
+    disposePlayerMixin();
     super.dispose();
-  }
-
-  void _startUiTimer() {
-    _uiTimer?.cancel();
-    _uiTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  void _startAutoHide() {
-    _hideTimer?.cancel();
-    if (!_ctl.value.isPlaying) return;
-    _hideTimer = Timer(const Duration(seconds: 3), () {
-      if (mounted && _showControls) setState(() => _showControls = false);
-    });
-  }
-
-  void _toggleControls() {
-    setState(() {
-      _showControls = !_showControls;
-      if (_showControls) {
-        if (_ctl.value.isPlaying) _startAutoHide();
-      } else {
-        _hideTimer?.cancel();
-      }
-    });
-  }
-
-  void _togglePlay() {
-    if (_ctl.value.isPlaying) {
-      _ctl.pause();
-    } else {
-      _ctl.play();
-    }
-    _playIconController.forward(from: 0);
-    _startAutoHide();
-    setState(() {});
-  }
-
-  void _skip(int seconds) {
-    final pos = _ctl.value.position + Duration(seconds: seconds);
-    final target = pos.inMilliseconds.clamp(0, _ctl.value.duration.inMilliseconds);
-    _ctl.seekTo(Duration(milliseconds: target));
-    _playIconController.forward(from: 0);
-    _startAutoHide();
-  }
-
-  void _setPlaybackSpeed(double speed) {
-    _ctl.setPlaybackSpeed(speed);
-    setState(() => _playbackSpeed = speed);
   }
 
   Future<void> _enterFullscreen() async {
@@ -138,13 +238,11 @@ class _ShijiePlayerState extends State<ShijiePlayer> with TickerProviderStateMix
     _uiTimer?.cancel();
     _isFullscreenActive = true;
 
-    final isPortrait = _ctl.value.aspectRatio > 0 && _ctl.value.aspectRatio < 1;
+    final isPortrait = ctl.value.aspectRatio > 0 && ctl.value.aspectRatio < 1;
 
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     if (isPortrait) {
-      await SystemChrome.setPreferredOrientations([
-        DeviceOrientation.portraitUp,
-      ]);
+      await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     } else {
       await SystemChrome.setPreferredOrientations([
         DeviceOrientation.landscapeLeft,
@@ -157,7 +255,7 @@ class _ShijiePlayerState extends State<ShijiePlayer> with TickerProviderStateMix
     await Navigator.of(context).push<bool>(
       PageRouteBuilder(
         pageBuilder: (c, a, sa) => _FullscreenPlayer(
-          controller: _ctl,
+          controller: ctl,
           isPortrait: isPortrait,
           episodeName: widget.episodeName,
           onExit: () => Navigator.of(c).pop(true),
@@ -172,9 +270,7 @@ class _ShijiePlayerState extends State<ShijiePlayer> with TickerProviderStateMix
     _isFullscreenActive = false;
 
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    await SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-    ]);
+    await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
     if (_videoEndedInFullscreen) {
       _videoEndedInFullscreen = false;
@@ -189,72 +285,12 @@ class _ShijiePlayerState extends State<ShijiePlayer> with TickerProviderStateMix
     setState(() {});
   }
 
-  void _onPanStart(DragStartDetails d, Size size) {
-    _startDx = d.localPosition.dx;
-    _startDy = d.localPosition.dy;
-    _isSeeking = false;
-    _isAdjusting = false;
-    _startVolume = (_ctl.value.volume * 100).round() / 100;
-  }
-
-  void _onPanUpdate(DragUpdateDetails d, Size size) {
-    final dx = d.localPosition.dx - _startDx;
-    final accumulatedDy = _startDy - d.localPosition.dy;
-
-    if (!_isAdjusting && dx.abs() > 8) {
-      _isSeeking = true;
-      _isSeekingForward = dx > 0;
-      final dur = _ctl.value.duration.inMilliseconds.toDouble();
-      final pos = _ctl.value.position.inMilliseconds.toDouble();
-      // ~80ms seek per pixel, gives ~1s precision with 12px drag
-      final newMs = (pos + dx * 80).round().clamp(0, dur.toInt());
-      _ctl.seekTo(Duration(milliseconds: newMs));
-      _startDx = d.localPosition.dx;
-      final target = Duration(milliseconds: newMs.toInt());
-      _adjustHint = '${_fmtSeek(target)} / ${_fmtSeek(_ctl.value.duration)}';
-      setState(() {});
-    }
-
-    if (!_isSeeking && accumulatedDy.abs() > 8) {
-      _isAdjusting = true;
-      final ratio = accumulatedDy / (size.height * 0.6);
-      if (d.localPosition.dx > size.width * 0.65) {
-        final newVol = (_startVolume + ratio).clamp(0.0, 1.0);
-        _ctl.setVolume(newVol);
-        _isVolumeAdjust = true;
-        _adjustHint = '${(newVol * 100).round()}%';
-      } else if (d.localPosition.dx < size.width * 0.35) {
-        final newBright = (_startBrightness + ratio).clamp(0.0, 1.0);
-        _startBrightness = newBright;
-        _isVolumeAdjust = false;
-        _adjustHint = '${(newBright * 100).round()}%';
-      }
-      setState(() {});
-    }
-  }
-
-  void _onPanEnd(DragEndDetails d) {
-    _isSeeking = false;
-    _isAdjusting = false;
-    _adjustHint = '';
-    _startAutoHide();
-  }
-
-  String _fmtSeek(Duration d) {
-    final h = d.inHours.abs();
-    final m = d.inMinutes.abs().remainder(60).toString().padLeft(2, '0');
-    final s = d.inSeconds.abs().remainder(60).toString().padLeft(2, '0');
-    return h > 0 ? '$h:$m:$s' : '$m:$s';
-  }
-
-  // --- Build ---
-
   @override
   Widget build(BuildContext context) {
     return _PlayerOverlay(
-      controller: _ctl,
+      controller: ctl,
       showControls: _showControls,
-      isLocked: _isLocked,
+      isLocked: false,
       isFullscreen: false,
       playIconAnim: _playIconAnim,
       playIconController: _playIconController,
@@ -262,16 +298,16 @@ class _ShijiePlayerState extends State<ShijiePlayer> with TickerProviderStateMix
       isVolumeAdjust: _isVolumeAdjust,
       isSeeking: _isSeeking,
       isSeekingForward: _isSeekingForward,
-      onToggleControls: _toggleControls,
-      onTogglePlay: _togglePlay,
+      onToggleControls: toggleControls,
+      onTogglePlay: togglePlay,
       onEnterFullscreen: _enterFullscreen,
       onBack: widget.onBack,
       episodeName: widget.episodeName,
       playbackSpeed: _playbackSpeed,
-      onSpeedChanged: _setPlaybackSpeed,
-      onPanStart: _onPanStart,
-      onPanUpdate: _onPanUpdate,
-      onPanEnd: _onPanEnd,
+      onSpeedChanged: setPlaybackSpeed,
+      onPanStart: onPanStart,
+      onPanUpdate: onPanUpdate,
+      onPanEnd: onPanEnd,
     );
   }
 }
@@ -290,61 +326,26 @@ class _FullscreenPlayer extends StatefulWidget {
   State<_FullscreenPlayer> createState() => _FullscreenPlayerState();
 }
 
-class _FullscreenPlayerState extends State<_FullscreenPlayer> with TickerProviderStateMixin {
-  bool _showControls = true;
-  Timer? _hideTimer;
-  Timer? _uiTimer;
+class _FullscreenPlayerState extends State<_FullscreenPlayer> with TickerProviderStateMixin, _PlayerControllerMixin<_FullscreenPlayer> {
   bool _isLocked = false;
-  double _playbackSpeed = 1.0;
 
-  double _startDx = 0;
-  double _startDy = 0;
-  bool _isSeeking = false;
-  double _startVolume = 1.0;
-  double _startBrightness = 0.5;
-  bool _isAdjusting = false;
-  bool _isVolumeAdjust = false;
-  bool _isSeekingForward = false;
-  String _adjustHint = '';
-
-  late AnimationController _playIconController;
-  late Animation<double> _playIconAnim;
-
-  VideoPlayerController get _ctl => widget.controller;
+  @override
+  VideoPlayerController get ctl => widget.controller;
 
   @override
   void initState() {
     super.initState();
-    _playIconController = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
-    _playIconAnim = CurvedAnimation(parent: _playIconController, curve: Curves.easeOut);
-    _startUiTimer();
-    _startAutoHide();
+    initPlayerMixin();
   }
 
   @override
   void dispose() {
-    _hideTimer?.cancel();
-    _uiTimer?.cancel();
-    _playIconController.dispose();
+    disposePlayerMixin();
     super.dispose();
   }
 
-  void _startUiTimer() {
-    _uiTimer?.cancel();
-    _uiTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  void _startAutoHide() {
-    _hideTimer?.cancel();
-    if (!_ctl.value.isPlaying) return;
-    _hideTimer = Timer(const Duration(seconds: 3), () {
-      if (mounted && _showControls) setState(() => _showControls = false);
-    });
-  }
-
-  void _toggleControls() {
+  @override
+  void toggleControls() {
     setState(() {
       _showControls = !_showControls;
       if (_showControls) {
@@ -353,7 +354,7 @@ class _FullscreenPlayerState extends State<_FullscreenPlayer> with TickerProvide
           _hideTimer = Timer(const Duration(seconds: 2), () {
             if (mounted) setState(() => _showControls = false);
           });
-        } else if (_ctl.value.isPlaying) {
+        } else if (ctl.value.isPlaying) {
           _startAutoHide();
         }
       } else {
@@ -362,22 +363,11 @@ class _FullscreenPlayerState extends State<_FullscreenPlayer> with TickerProvide
     });
   }
 
-  void _togglePlay() {
-    if (_ctl.value.isPlaying) {
-      _ctl.pause();
-    } else {
-      _ctl.play();
-    }
-    _playIconController.forward(from: 0);
-    _startAutoHide();
-    setState(() {});
-  }
-
   void _toggleLock() {
     setState(() {
       _isLocked = !_isLocked;
       if (_isLocked) {
-        _showControls = true; // show lock icon
+        _showControls = true;
         _hideTimer?.cancel();
         _hideTimer = Timer(const Duration(seconds: 2), () {
           if (mounted) setState(() => _showControls = false);
@@ -389,94 +379,31 @@ class _FullscreenPlayerState extends State<_FullscreenPlayer> with TickerProvide
     });
   }
 
-  void _setPlaybackSpeed(double speed) {
-    _ctl.setPlaybackSpeed(speed);
-    setState(() => _playbackSpeed = speed);
-  }
-
-  void _onPanStart(DragStartDetails d, Size size) {
-    _startDx = d.localPosition.dx;
-    _startDy = d.localPosition.dy;
-    _isSeeking = false;
-    _isAdjusting = false;
-    _startVolume = (_ctl.value.volume * 100).round() / 100;
-  }
-
-  void _onPanUpdate(DragUpdateDetails d, Size size) {
-    final dx = d.localPosition.dx - _startDx;
-    final accumulatedDy = _startDy - d.localPosition.dy;
-
-    if (!_isAdjusting && dx.abs() > 8) {
-      _isSeeking = true;
-      _isSeekingForward = dx > 0;
-      final dur = _ctl.value.duration.inMilliseconds.toDouble();
-      final pos = _ctl.value.position.inMilliseconds.toDouble();
-      final newMs = (pos + dx * 80).round().clamp(0, dur.toInt());
-      _ctl.seekTo(Duration(milliseconds: newMs));
-      _startDx = d.localPosition.dx;
-      final target = Duration(milliseconds: newMs.toInt());
-      _adjustHint = '${_fmtSeek(target)} / ${_fmtSeek(_ctl.value.duration)}';
-      setState(() {});
-    }
-
-    if (!_isSeeking && accumulatedDy.abs() > 8) {
-      _isAdjusting = true;
-      final ratio = accumulatedDy / (size.height * 0.6);
-      if (d.localPosition.dx > size.width * 0.65) {
-        final newVol = (_startVolume + ratio).clamp(0.0, 1.0);
-        _ctl.setVolume(newVol);
-        _isVolumeAdjust = true;
-        _adjustHint = '${(newVol * 100).round()}%';
-      } else if (d.localPosition.dx < size.width * 0.35) {
-        final newBright = (_startBrightness + ratio).clamp(0.0, 1.0);
-        _startBrightness = newBright;
-        _isVolumeAdjust = false;
-        _adjustHint = '${(newBright * 100).round()}%';
-      }
-      setState(() {});
-    }
-  }
-
-  void _onPanEnd(DragEndDetails d) {
-    _isSeeking = false;
-    _isAdjusting = false;
-    _adjustHint = '';
-    _startAutoHide();
-  }
-
-  String _fmtSeek(Duration d) {
-    final h = d.inHours.abs();
-    final m = d.inMinutes.abs().remainder(60).toString().padLeft(2, '0');
-    final s = d.inSeconds.abs().remainder(60).toString().padLeft(2, '0');
-    return h > 0 ? '$h:$m:$s' : '$m:$s';
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: _PlayerOverlay(
-        controller: _ctl,
+        controller: ctl,
         showControls: _showControls,
         isLocked: _isLocked,
         isFullscreen: true,
         playIconAnim: _playIconAnim,
         playIconController: _playIconController,
         adjustHint: _adjustHint,
-      isVolumeAdjust: _isVolumeAdjust,
-      isSeeking: _isSeeking,
-      isSeekingForward: _isSeekingForward,
-        onToggleControls: _toggleControls,
-        onTogglePlay: _togglePlay,
+        isVolumeAdjust: _isVolumeAdjust,
+        isSeeking: _isSeeking,
+        isSeekingForward: _isSeekingForward,
+        onToggleControls: toggleControls,
+        onTogglePlay: togglePlay,
         onEnterFullscreen: widget.onExit,
         onBack: null,
         episodeName: widget.episodeName,
         playbackSpeed: _playbackSpeed,
-        onSpeedChanged: _setPlaybackSpeed,
-        onPanStart: _isLocked ? null : _onPanStart,
-        onPanUpdate: _isLocked ? null : _onPanUpdate,
-        onPanEnd: _isLocked ? null : _onPanEnd,
-
+        onSpeedChanged: setPlaybackSpeed,
+        onPanStart: _isLocked ? null : onPanStart,
+        onPanUpdate: _isLocked ? null : onPanUpdate,
+        onPanEnd: _isLocked ? null : onPanEnd,
         onToggleLock: _toggleLock,
       ),
     );
@@ -704,8 +631,8 @@ class _PlayerOverlay extends StatelessWidget {
                                 constraints: const BoxConstraints(minWidth: 36),
                               ),
                               const SizedBox(width: 4),
-                              Text(_fmtTime(ctl.value.position), style: const TextStyle(color: Colors.white, fontSize: 12)),
-                              Text(' / ${_fmtTime(ctl.value.duration)}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                              Text(_PlayerControllerMixin.fmtTime(ctl.value.position), style: const TextStyle(color: Colors.white, fontSize: 12)),
+                              Text(' / ${_PlayerControllerMixin.fmtTime(ctl.value.duration)}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
                               const Spacer(),
                               if (onSpeedChanged != null)
                                 _SpeedButton(speed: playbackSpeed, onChanged: onSpeedChanged!),
@@ -755,13 +682,6 @@ class _PlayerOverlay extends StatelessWidget {
       ),
     );
   }
-
-  static String _fmtTime(Duration d) {
-    final h = d.inHours;
-    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return h > 0 ? '$h:$m:$s' : '$m:$s';
-  }
 }
 
 // ── Speed button ───────────────────────────────────────────────
@@ -785,9 +705,10 @@ class _SpeedButton extends StatelessWidget {
   }
 
   void _showSpeedMenu(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet<double>(
       context: context,
-      backgroundColor: Colors.black87,
+      backgroundColor: isDark ? Colors.black87 : Colors.white,
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.6,
         maxWidth: 280,
@@ -795,7 +716,7 @@ class _SpeedButton extends StatelessWidget {
       builder: (ctx) => ListView(
         shrinkWrap: true,
         padding: const EdgeInsets.symmetric(vertical: 8),
-        children: _ShijiePlayerState._speedOptions.map((s) {
+        children: _PlayerControllerMixin.speedOptions.map((s) {
           final isActive = s == speed;
           return InkWell(
             onTap: () {
@@ -811,7 +732,7 @@ class _SpeedButton extends StatelessWidget {
                     child: Text(
                       s == 1.0 ? '${s.toStringAsFixed(0)}x 正常' : '${s}x',
                       style: TextStyle(
-                        color: isActive ? const Color(0xFFE50914) : Colors.white,
+                        color: isActive ? const Color(0xFFE50914) : (isDark ? Colors.white : Colors.black87),
                         fontSize: 16,
                         fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
                       ),
@@ -831,47 +752,76 @@ class _SpeedButton extends StatelessWidget {
 
 // ── Seek bar ──────────────────────────────────────────────────
 
-class _SeekBar extends StatelessWidget {
+class _SeekBar extends StatefulWidget {
   final VideoPlayerController controller;
   final VoidCallback onSeekEnd;
 
   const _SeekBar({required this.controller, required this.onSeekEnd});
 
   @override
+  State<_SeekBar> createState() => _SeekBarState();
+}
+
+class _SeekBarState extends State<_SeekBar> {
+  bool _isDragging = false;
+  double _dragValue = 0.0;
+
+  @override
   Widget build(BuildContext context) {
-    final ctl = controller;
+    final ctl = widget.controller;
     final dur = ctl.value.duration.inMilliseconds.toDouble();
     final pos = ctl.value.position.inMilliseconds.toDouble();
     final buffered = ctl.value.buffered.isNotEmpty
         ? ctl.value.buffered.last.end.inMilliseconds.toDouble()
         : 0.0;
-    final value = dur > 0 ? (pos / dur).clamp(0.0, 1.0) : 0.0;
+    final actualValue = dur > 0 ? (pos / dur).clamp(0.0, 1.0) : 0.0;
     final bufValue = dur > 0 ? (buffered / dur).clamp(0.0, 1.0) : 0.0;
+    final displayValue = _isDragging ? _dragValue : actualValue;
+    final canSeek = dur > 0;
+
+    // Time preview for drag bubble
+    final previewMs = (dur * displayValue).toInt();
+    final previewText = _PlayerControllerMixin.fmtTime(Duration(milliseconds: previewMs));
 
     return SizedBox(
-      height: 14,
+      height: _isDragging ? 32 : 14,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTapDown: (d) {
-          final w = context.size?.width ?? 1;
+        onTapDown: canSeek ? (d) {
+          final w = context.size?.width ?? 0;
+          if (w <= 0) return;
           final ratio = (d.localPosition.dx / w).clamp(0.0, 1.0);
           ctl.seekTo(Duration(milliseconds: (dur * ratio).toInt()));
-          onSeekEnd();
-        },
-        onHorizontalDragStart: (d) {
-          final w = context.size?.width ?? 1;
-          final ratio = (d.localPosition.dx / w).clamp(0.0, 1.0);
-          ctl.seekTo(Duration(milliseconds: (dur * ratio).toInt()));
-        },
-        onHorizontalDragUpdate: (d) {
-          final w = context.size?.width ?? 1;
-          final ratio = (d.localPosition.dx / w).clamp(0.0, 1.0);
-          ctl.seekTo(Duration(milliseconds: (dur * ratio).toInt()));
-        },
-        onHorizontalDragEnd: (_) => onSeekEnd(),
+          widget.onSeekEnd();
+        } : null,
+        onHorizontalDragStart: canSeek ? (d) {
+          final w = context.size?.width ?? 0;
+          if (w <= 0) return;
+          setState(() {
+            _isDragging = true;
+            _dragValue = (d.localPosition.dx / w).clamp(0.0, 1.0);
+          });
+        } : null,
+        onHorizontalDragUpdate: canSeek ? (d) {
+          final w = context.size?.width ?? 0;
+          if (w <= 0) return;
+          setState(() {
+            _dragValue = (d.localPosition.dx / w).clamp(0.0, 1.0);
+          });
+        } : null,
+        onHorizontalDragEnd: canSeek ? (_) {
+          ctl.seekTo(Duration(milliseconds: (dur * _dragValue).toInt()));
+          setState(() => _isDragging = false);
+          widget.onSeekEnd();
+        } : null,
         child: CustomPaint(
-          painter: _SeekBarPainter(value: value, bufferedValue: bufValue),
-          size: const Size(double.infinity, 14),
+          painter: _SeekBarPainter(
+            value: displayValue,
+            bufferedValue: bufValue,
+            isDragging: _isDragging,
+            previewText: _isDragging ? previewText : null,
+          ),
+          size: Size(double.infinity, _isDragging ? 32 : 14),
         ),
       ),
     );
@@ -881,14 +831,21 @@ class _SeekBar extends StatelessWidget {
 class _SeekBarPainter extends CustomPainter {
   final double value;
   final double bufferedValue;
+  final bool isDragging;
+  final String? previewText;
 
-  _SeekBarPainter({required this.value, required this.bufferedValue});
+  _SeekBarPainter({
+    required this.value,
+    required this.bufferedValue,
+    this.isDragging = false,
+    this.previewText,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final trackH = 3.0;
-    final thumbR = 6.0;
-    final trackCenterY = size.height - thumbR;
+    final trackH = isDragging ? 4.0 : 3.0;
+    final thumbR = isDragging ? 8.0 : 6.0;
+    final trackCenterY = isDragging ? size.height - 16.0 : size.height - thumbR;
     final trackY = trackCenterY - trackH / 2;
     final playedW = size.width * value;
     final bufW = size.width * bufferedValue;
@@ -905,9 +862,43 @@ class _SeekBarPainter extends CustomPainter {
     );
     // Thumb
     canvas.drawCircle(Offset(playedW, trackCenterY), thumbR, Paint()..color = const Color(0xFFE50914));
+
+    // Time preview bubble when dragging
+    if (isDragging && previewText != null) {
+      final bubbleW = 44.0;
+      final bubbleH = 22.0;
+      final bubbleR = 6.0;
+      final bubbleX = (playedW - bubbleW / 2).clamp(0.0, size.width - bubbleW);
+      final bubbleY = trackCenterY - thumbR - 8 - bubbleH;
+
+      final bubbleRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(bubbleX, bubbleY, bubbleW, bubbleH),
+        Radius.circular(bubbleR),
+      );
+      canvas.drawRRect(bubbleRect, Paint()..color = const Color(0xFFE50914));
+
+      // Small triangle pointer
+      final pointerX = playedW.clamp(bubbleX + 6, bubbleX + bubbleW - 6);
+      final pointerPath = Path()
+        ..moveTo(pointerX - 4, bubbleY + bubbleH)
+        ..lineTo(pointerX + 4, bubbleY + bubbleH)
+        ..lineTo(pointerX, bubbleY + bubbleH + 5)
+        ..close();
+      canvas.drawPath(pointerPath, Paint()..color = const Color(0xFFE50914));
+
+      // Text
+      final tp = TextPainter(
+        text: TextSpan(
+          text: previewText,
+          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(bubbleX + (bubbleW - tp.width) / 2, bubbleY + (bubbleH - tp.height) / 2));
+    }
   }
 
   @override
   bool shouldRepaint(covariant _SeekBarPainter old) =>
-      value != old.value || bufferedValue != old.bufferedValue;
+      value != old.value || bufferedValue != old.bufferedValue || isDragging != old.isDragging || previewText != old.previewText;
 }
