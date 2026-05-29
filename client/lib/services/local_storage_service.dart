@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/movie.dart';
 import '../models/vod_source.dart';
 import '../models/chat_session.dart';
+import '../models/live_channel.dart';
 
 class LocalStorageService {
   static const _favKey = 'favorites';
@@ -272,5 +273,20 @@ class LocalStorageService {
   static Future<void> clearCurrentAiChatSession() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_currentAiChatKey);
+  }
+
+  static const _customLiveKey = 'custom_live_channels';
+
+  static Future<List<LiveChannel>> getCustomLiveChannels() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_customLiveKey);
+    if (raw == null) return [];
+    final list = jsonDecode(raw) as List;
+    return list.map((e) => LiveChannel.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  static Future<void> saveCustomLiveChannels(List<LiveChannel> channels) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_customLiveKey, jsonEncode(channels.map((e) => e.toJson()).toList()));
   }
 }

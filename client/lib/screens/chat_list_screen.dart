@@ -111,7 +111,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              '点击下方按钮开始与 AI 找片助手对话',
+              '点击下方按钮开始与 AI 影伴对话',
               style: TextStyle(color: Colors.grey, fontSize: 14),
             ),
           ],

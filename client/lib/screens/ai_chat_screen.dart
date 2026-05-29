@@ -411,7 +411,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'AI 找片',
+                        'AI 影伴',
                         style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 16, fontWeight: FontWeight.w700),
                       ),
                       Text(

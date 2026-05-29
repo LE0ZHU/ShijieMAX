@@ -15,6 +15,7 @@ import 'settings_screen.dart';
 import '../widgets/parallax_widget.dart';
 import '../widgets/shijie_refresh_indicator.dart';
 import 'ai_chat_screen.dart';
+import 'live_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -695,6 +696,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final pages = [
       _buildHomePage(),
       _buildCategoryPage(),
+      LiveScreen(),
       AiChatScreen(),
       _buildProfilePage(),
     ];
@@ -705,7 +707,7 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: theme.scaffoldBackgroundColor,
           extendBodyBehindAppBar: true,
           extendBody: true,
-          appBar: (_selectedIndex == 2 || _selectedIndex == 3)
+          appBar: (_selectedIndex >= 2)
               ? null
               : AppBar(
             backgroundColor: Colors.transparent,
@@ -840,9 +842,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         label: '发现',
                       ),
                       BottomNavigationBarItem(
+                        icon: Icon(Icons.live_tv_outlined),
+                        activeIcon: Icon(Icons.live_tv),
+                        label: '放映厅',
+                      ),
+                      BottomNavigationBarItem(
                         icon: Icon(Icons.auto_awesome_outlined),
                         activeIcon: Icon(Icons.auto_awesome),
-                        label: 'AI找片',
+                        label: 'AI影伴',
                       ),
                       BottomNavigationBarItem(
                         icon: Icon(Icons.person_outline),

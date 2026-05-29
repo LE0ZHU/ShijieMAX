@@ -12,6 +12,19 @@ class ChangelogEntry {
 
 const changelog = <ChangelogEntry>[
   ChangelogEntry(
+    version: '1.4.0',
+    date: '2026-05-23',
+    changes: [
+      'AI影伴改为底部导航独立Tab页',
+      '聊天记录跨页面持久化保存',
+      'AI回复中断时显示重试按钮',
+      '新增情绪找片（开心/emo/想哭/治愈）',
+      '新增基于观看历史的个性化推荐',
+      '新增清空对话功能',
+      '我的页面布局优化',
+    ],
+  ),
+  ChangelogEntry(
     version: '1.3.0',
     date: '2026-05-17',
     changes: [
